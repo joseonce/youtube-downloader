@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Descargador de YouTube - Manual de Usuario y Atajos de Teclado</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-color: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --accent: #f43f5e;
+      --border-color: #334155;
+      --table-stripe: #182234;
+      --kbd-bg: #334155;
+      --kbd-border: #475569;
+      --code-bg: #0b1120;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg-color: #f8fafc;
+        --card-bg: #ffffff;
+        --text-color: #0f172a;
+        --text-muted: #475569;
+        --primary: #0284c7;
+        --primary-hover: #0369a1;
+        --accent: #e11d48;
+        --border-color: #e2e8f0;
+        --table-stripe: #f1f5f9;
+        --kbd-bg: #e2e8f0;
+        --kbd-border: #cbd5e1;
+        --code-bg: #f1f5f9;
+      }
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.65;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 2.5rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    header {
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      font-size: 2.2rem;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+    }
+    h2 {
+      font-size: 1.45rem;
+      color: var(--primary);
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.4rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-color);
+    }
+    p, ul, ol {
+      margin-bottom: 1rem;
+    }
+    ul, ol {
+      padding-left: 1.5rem;
+    }
+    li {
+      margin-bottom: 0.4rem;
+    }
+    strong {
+      color: var(--primary-hover);
+    }
+    blockquote {
+      background: var(--code-bg);
+      border-left: 4px solid var(--primary);
+      padding: 0.9rem 1.2rem;
+      margin: 1.2rem 0;
+      border-radius: 0 8px 8px 0;
+      color: var(--text-muted);
+    }
+    blockquote strong {
+      color: var(--primary);
+    }
+    kbd {
+      display: inline-block;
+      padding: 0.18rem 0.45rem;
+      font-size: 0.88rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--text-color);
+      background-color: var(--kbd-bg);
+      border: 1px solid var(--kbd-border);
+      border-radius: 5px;
+      box-shadow: 0 2px 0 var(--kbd-border);
+      vertical-align: baseline;
+      white-space: nowrap;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      background-color: var(--code-bg);
+      padding: 0.15rem 0.35rem;
+      border-radius: 4px;
+      font-size: 0.92rem;
+      color: var(--primary);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 0.95rem;
+    }
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    th {
+      background-color: var(--code-bg);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background-color: var(--table-stripe);
+    }
+    .toc {
+      background-color: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.2rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .toc h2 {
+      margin-top: 0;
+      font-size: 1.15rem;
+      border: none;
+      padding: 0;
+      margin-bottom: 0.75rem;
+    }
+    .toc ul {
+      list-style-type: none;
+      padding-left: 0;
+      margin-bottom: 0;
+    }
+    .toc li {
+      margin-bottom: 0.35rem;
+    }
+    a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .folder-badge {
+      display: inline-block;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Descargador de YouTube</h1>
+      <p class="subtitle">Manual de Usuario, Configuración y Guía Completa de Atajos de Teclado</p>
+    </header>
+
+    <nav class="toc" aria-label="Tabla de contenidos">
+      <h2>Índice de Secciones</h2>
+      <ul>
+        <li><a href="#carpetas">1. Estructura de Carpetas de la Aplicación</a></li>
+        <li><a href="#busqueda">2. Búsqueda de Contenidos</a></li>
+        <li><a href="#tipos-busqueda">3. Tipos de Búsqueda: Vídeos, Canales y Listas</a></li>
+        <li><a href="#plataformas">4. Plataformas Multimedia Soportadas</a></li>
+        <li><a href="#reproductor">5. Reproducción Multimedia Continua (VLC)</a></li>
+        <li><a href="#descargas">6. Descarga de Archivos y Formatos</a></li>
+        <li><a href="#favoritos">7. Sistema de Múltiples Listas de Favoritos</a></li>
+        <li><a href="#opciones">8. Configuración y Opciones del Programa</a></li>
+        <li><a href="#actualizaciones">9. Actualizaciones del Motor yt-dlp (Nightly)</a></li>
+        <li><a href="#atajos">10. Tabla Completa de Atajos de Teclado</a></li>
+      </ul>
+    </nav>
+
+    <section id="carpetas">
+      <h2>1. Estructura de Carpetas de la Aplicación</h2>
+      <p>El programa organiza sus recursos y ficheros en carpetas independientes para garantizar su portabilidad y fácil mantenimiento:</p>
+      <ul>
+        <li><span class="folder-badge">bin/</span>: Contiene el motor de descarga <code>yt-dlp.exe</code> y recibe automáticamente las descargas y actualizaciones Nightly.</li>
+        <li><span class="folder-badge">config/</span>: Guarda la configuración persistente en <code>config.json</code> y la subcarpeta <code>config/favoritos/</code>, donde cada lista de favoritos se guarda en un fichero <code>.json</code> independiente.</li>
+        <li><span class="folder-badge">docs/</span>: Contiene la documentación técnica y de usuario en Markdown (<code>manual.md</code>, <code>atajos.md</code>) y sus versiones web (<code>manual.html</code>, <code>atajos.html</code>).</li>
+        <li><span class="folder-badge">resources/vlc/</span>: Aloja las librerías nativas de reproducción multimedia (VLC), permitiendo que el ejecutable principal sea ligero e independiente.</li>
+      </ul>
+    </section>
+
+    <section id="busqueda">
+      <h2>2. Búsqueda de Contenidos</h2>
+      <p>Para realizar una búsqueda:</p>
+      <ol>
+        <li>Pulsa <kbd>Alt + T</kbd> o <kbd>Ctrl + F</kbd> para situar el foco en el campo de texto.</li>
+        <li>Escribe los términos deseados o pega directamente una URL de vídeo, canal o lista.</li>
+        <li>Selecciona el tipo de búsqueda en el selector <strong>Tipo</strong> (<kbd>Alt + I</kbd>).</li>
+        <li>Pulsa <kbd>Enter</kbd> o el botón <strong>Buscar</strong> (<kbd>Alt + B</kbd>).</li>
+      </ol>
+      <blockquote>
+        <strong>Criterio de ordenación natural de yt-dlp:</strong> Los resultados se obtienen y presentan respetando fielmente la relevancia y orden natural por defecto de yt-dlp. El número máximo de resultados se define cómodamente en <strong>Opciones y Preferencias</strong> (<kbd>Ctrl + ,</kbd> o <kbd>F2</kbd>), manteniendo la ventana de búsqueda despejada.
+      </blockquote>
+    </section>
+
+    <section id="tipos-busqueda">
+      <h2>3. Tipos de Búsqueda: Vídeos, Canales y Listas</h2>
+      <p>Por defecto, la aplicación siempre inicia lista para buscar en <strong>YouTube</strong> y con el tipo de búsqueda en <strong>Vídeos</strong>. El usuario puede alternar el tipo de búsqueda en el selector <strong>Tipo</strong> (<kbd>Alt + I</kbd>):</p>
+      <ul>
+        <li><strong>Vídeos</strong> <em>(Predeterminado)</em>: Muestra los vídeos encontrados según el criterio por defecto de yt-dlp, con su título, canal, duración e identificador.</li>
+        <li><strong>Canales</strong>: Encuentra canales y creadores de contenido, mostrando su nombre, identificador, suscriptores y, si está disponible, el número de vídeos que contiene (al igual que las listas de reproducción). Al pulsar <kbd>Enter</kbd> o doble clic en un canal, se cargarán de inmediato todos los vídeos subidos por dicho canal.</li>
+        <li><strong>Listas de reproducción</strong>: Localiza listas temáticas indicando el número de vídeos incluidos. Al pulsar <kbd>Enter</kbd> o doble clic, se mostrarán todos los vídeos de la lista.</li>
+      </ul>
+    </section>
+
+    <section id="plataformas">
+      <h2>4. Descarga Universal desde Más de 2.000 Plataformas Multimedia</h2>
+      <p>El motor universal de <strong>yt-dlp</strong> reconoce y procesa automáticamente cualquier enlace directo que pegues en el campo de búsqueda (YouTube, SoundCloud, Bandcamp, Bilibili, Twitch, Vimeo, TikTok, Mixcloud, Ivoox, RTVE y más de 2.000 servicios compatibles).</p>
+      <p>Por tanto, no es necesario seleccionar ninguna plataforma previa: basta con pegar cualquier enlace directo en la barra de búsqueda y pulsar <kbd>Enter</kbd> o el botón <strong>Descargar</strong> para procesar o descargar el contenido.</p>
+    </section>
+
+    <section id="reproductor">
+      <h2>5. Reproducción Multimedia Continua (VLC)</h2>
+      <p>El reproductor integrado permite previsualizar y disfrutar de las pistas sin necesidad de descargarlas previamente:</p>
+      <ul>
+        <li><strong>Reproducción continua de selección individual o marcada</strong>: Pulsa <kbd>Ctrl + P</kbd> o el botón <em>Reproducir selección</em>.</li>
+        <li><strong>Reproducción continua de pistas marcadas (salteadas)</strong>: Puedes marcar con <kbd>Espacio</kbd> cualquier combinación de pistas no consecutivas de la lista (por ejemplo, la 1ª, la 3ª, la 6ª y la 10ª). Al pulsar <kbd>Ctrl + P</kbd> o el botón <em>Reproducir (N)</em>, el reproductor reproducirá en secuencia continua únicamente esas pistas marcadas, omitiendo las intermedias no seleccionadas.</li>
+        <li><strong>Reproducir toda la lista</strong>: Pulsa <kbd>Ctrl + L</kbd> para reproducir todas las pistas encontradas de manera consecutiva.</li>
+        <li><strong>Pausar o reanudar</strong>: Pulsa <kbd>P</kbd> o <kbd>Espacio</kbd> dentro del reproductor para pausar o continuar la reproducción al instante.</li>
+        <li><strong>Subir y bajar volumen</strong>: Pulsa <kbd>Flecha Arriba</kbd> para subir el volumen (+5%) o <kbd>Flecha Abajo</kbd> para bajarlo (-5%).</li>
+        <li><strong>Silenciar o activar sonido (Mute)</strong>: Pulsa la tecla <kbd>M</kbd> para silenciar el reproductor o restablecer el nivel de audio previo.</li>
+        <li><strong>Avanzar / Retroceder canciones de la lista en reproducción</strong>: Pulsa <kbd>Ctrl + N</kbd> (o tecla <kbd>N</kbd> / <kbd>Ctrl + Flecha Derecha</kbd>) para avanzar a la siguiente canción de la lista, y <kbd>Ctrl + P</kbd> (o <kbd>Ctrl + Flecha Izquierda</kbd>) para retroceder a la canción anterior. <em>(Nota: Las combinaciones con Ctrl cambian de canción completa en la lista; las flechas solas o combinadas con <kbd>Shift</kbd>/<kbd>Alt</kbd> desplazan la posición en segundos o minutos dentro de la misma pista).</em></li>
+        <li><strong>Ver y gestionar la cola de reproducción (<kbd>Q</kbd> en el reproductor / <kbd>Ctrl + J</kbd> en la ventana principal)</strong>: Abre una ventana accesible con el listado completo de pistas en cola. Puedes recorrerlas con las flechas, pulsar <kbd>Enter</kbd> para reproducir inmediatamente la pista seleccionada o pulsar <kbd>Supr</kbd> para eliminarla de la cola de reproducción.</li>
+        <li><strong>Añadir o quitar de Favoritos</strong>: Pulsa la tecla <kbd>B</kbd> o <kbd>F</kbd> para guardar la pista que está sonando en tu lista de favoritos o quitarla si ya existía.</li>
+        <li><strong>Descargar contenido en reproducción</strong>: Pulsa <kbd>Ctrl + D</kbd> para iniciar la descarga del archivo en curso directamente desde el reproductor.</li>
+        <li><strong>Cerrar reproductor</strong>: Pulsa <kbd>Escape</kbd> para detener la reproducción y regresar a la ventana principal.</li>
+        <li><strong>Variar velocidad de reproducción (<kbd>F6</kbd> y <kbd>F7</kbd>)</strong>: Pulsa <kbd>F6</kbd> para disminuir la velocidad en intervalos de 0,1x (hasta un mínimo de 0,5x) o <kbd>F7</kbd> para aumentarla (hasta 2,0x). El lector de pantalla anunciará de forma concisa la velocidad resultante (por ejemplo: "0,8", "1,2").</li>
+        <li><strong>Anunciar porcentaje y tiempo (<kbd>F8</kbd>, <kbd>F9</kbd> y <kbd>F10</kbd>)</strong>: Pulsa <kbd>F8</kbd> para que el sintetizador de voz anuncie el porcentaje de reproducción del vídeo, <kbd>F9</kbd> para el tiempo transcurrido y <kbd>F10</kbd> para el tiempo restante.</li>
+        <li><strong>Navegación temporal con intervalos</strong>: Avanza o retrocede con las flechas del teclado en diferentes intervalos: <kbd>Flechas</kbd> (10 seg), <kbd>Shift + Flechas</kbd> (1 seg), <kbd>Shift + Alt + Flechas</kbd> (5 seg), <kbd>Ctrl + Shift + Flechas</kbd> (1 min) y <kbd>Ctrl + Alt + Shift + Flechas</kbd> (5 min).</li>
+        <li><strong>Activar / Desactivar ventana de vídeo (<kbd>F11</kbd>)</strong>: Oculta o muestra el panel de vídeo en cualquier momento para alternar entre el modo vídeo y el modo solo audio compacto.</li>
+        <li><strong>Modo Solo Audio Ultrarrápido</strong>: Al configurar la reproducción sin vídeo en Preferencias, se transmite exclusivamente la pista de audio más ligera, ofreciendo transiciones inmediatas entre canciones y mínimo consumo de recursos.</li>
+        <li><strong>Pre-buffering predictivo</strong>: A los 2 segundos de comenzar la pista activa (y en los últimos 15 segundos), el reproductor precarga la siguiente para evitar silencios y garantizar transiciones instantáneas.</li>
+        <li><strong>Recuperación automática de foco tras cambio de tarea</strong>: Si cambias de tarea o ventana en Windows (<kbd>Alt + Tab</kbd>) mientras el reproductor está abierto y vuelves a YouTubeDownloader, la aplicación eleva automáticamente la ventana del reproductor y le devuelve el foco de inmediato, permitiendo controlar la reproducción, alternar vídeo (<kbd>F11</kbd>), volumen y todos los atajos sin interrupción.</li>
+        <li><strong>Repetición continua</strong>: Desactivada por defecto, activable con la tecla <kbd>R</kbd> o desde Preferencias.</li>
+      </ul>
+    </section>
+
+    <section id="descargas">
+      <h2>6. Descarga de Archivos y Formatos</h2>
+      <p>Para descargar pistas o vídeos:</p>
+      <ol>
+        <li>Marca los elementos que desees en la lista con <kbd>Espacio</kbd> (o pulsa <kbd>Ctrl + A</kbd> para todos).</li>
+        <li>Elige el formato de salida (<kbd>Alt + F</kbd>):
+          <ul>
+            <li><strong>Vídeo (Mejor calidad MP4)</strong>: Vídeo a máxima resolución con audio integrado.</li>
+            <li><strong>Audio MP3 (192 kbps - Estándar)</strong>: Audio MP3 ligero y equilibrado.</li>
+            <li><strong>Audio MP3 (320 kbps - Alta fidelidad)</strong>: Máxima calidad estéreo MP3.</li>
+            <li><strong>Audio M4A (Original AAC)</strong>: Sonido directo original sin recodificar.</li>
+            <li><strong>Audio FLAC (Sin pérdida)</strong>: Calidad de estudio sin pérdida (Free Lossless Audio Codec).</li>
+            <li><strong>Audio WAV (PCM sin comprimir)</strong>: Formato de audio puro de máxima fidelidad.</li>
+          </ul>
+        </li>
+        <li>Pulsa el botón <strong>Descargar selección</strong> (<kbd>Alt + D</kbd> o <kbd>Ctrl + D</kbd>).</li>
+        <li><strong>Organización en subcarpetas</strong>: Si hay más de una descarga seleccionada (varios vídeos marcados por lotes), la aplicación preguntará el nombre de la subcarpeta para organizarlos (sugiriendo automáticamente el nombre de la lista si pertenecen a una lista de reproducción o de favoritos, o el nombre del canal si no pertenecen a una lista). Si descargas un único elemento, se guardará directamente en la carpeta principal sin abrir este diálogo. Deja el campo vacío si prefieres guardarlos directamente en la carpeta principal.</li>
+      </ol>
+    </section>
+
+    <section id="favoritos">
+      <h2>7. Sistema de Múltiples Listas de Favoritos en Ficheros Separados</h2>
+      <ul>
+        <li><strong>Añadir a Favoritos</strong> (<kbd>Ctrl + B</kbd>): Añade el elemento seleccionado a la lista <em>Principal</em> o a una lista temática personalizada (ej. <em>Música Rock</em>, <em>Flamenco</em>, etc.).</li>
+        <li><strong>Ver Favoritos</strong> (<kbd>Ctrl + H</kbd>): Carga y muestra los elementos guardados en la tabla.</li>
+        <li><strong>Reproducción Continua de Favoritos</strong> (<kbd>Ctrl + Shift + P</kbd>): Reproduce de corrido toda tu colección sin pausas.</li>
+        <li><strong>Eliminar de Favoritos</strong> (<kbd>Supr</kbd>): Elimina el elemento de favoritos tanto desde la tabla de resultados como directamente desde el reproductor multimedia, solicitando confirmación por defecto.</li>
+        <li><strong>Ficheros independientes para compartir</strong>: Cada lista de favoritos se guarda en un fichero <code>.json</code> individual dentro de <code>config/favoritos/</code> (ej. <code>Rock.json</code>, <code>Flamenco.json</code>). Puedes pasar a un amigo únicamente tu lista de rock y a otro tu lista de flamenco según sus preferencias musicales sin necesidad de compartir toda tu lista. Tu amigo solo tiene que copiar el fichero en su carpeta <code>config/favoritos/</code>.</li>
+      </ul>
+    </section>
+
+    <section id="opciones">
+      <h2>8. Configuración y Opciones del Programa</h2>
+      <p>Desde la ventana de <strong>Preferencias</strong> (<kbd>Ctrl + ,</kbd> o <kbd>F2</kbd>) puedes definir:</p>
+      <ul>
+        <li><strong>Carpeta de destino predeterminada</strong>: Carpeta donde se guardarán las descargas.</li>
+        <li><strong>Formato de salida predeterminado</strong>: MP4, MP3 192k, MP3 320k o M4A.</li>
+        <li><strong>Cantidad de resultados por búsqueda</strong>: 25 por defecto (configurable de 1 a 500).</li>
+        <li><strong>Abrir carpeta de descargas automáticamente al finalizar</strong>: Abre inmediatamente la carpeta en el Explorador de Windows al completarse la descarga.</li>
+        <li><strong>Preguntar si abrir la carpeta al finalizar la descarga (cuadro Sí / No)</strong>: Si la apertura automática está desmarcada, al terminar la descarga se mostrará un cuadro de diálogo accesible preguntando si deseas abrir la carpeta en ese momento.</li>
+        <li><strong>Emitir un leve sonido de espera periódico mientras se procesa la descarga</strong>: Activa o desactiva el pulso sonoro periódico cada 2 segundos mientras las descargas se procesan en segundo plano o se obtiene la descripción de un elemento (activado por defecto).</li>
+        <li><strong>Repetición continua activada por defecto en el reproductor</strong>: Desactivada por defecto.</li>
+        <li><strong>Reproducir con vídeo por defecto</strong>: Con vídeo por defecto; desmarcar para modo solo audio de alta velocidad.</li>
+        <li><strong>Dispositivo de salida de audio</strong>: Permite seleccionar la tarjeta de sonido, auriculares o altavoces específicos exclusivos para el reproductor multimedia, con botón <strong>Probar sonido</strong> interactivo y <strong>Actualizar</strong> lista. Las locuciones TTS y los lectores de pantalla (NVDA, JAWS, Narrador) no se ven afectados por este cambio, manteniéndose siempre en el dispositivo habitual del sistema.</li>
+        <li><strong>Locuciones de voz y lectores de pantalla</strong>: Configura cuándo emite la aplicación avisos por voz: <em>Automático</em> (predeterminado: solo emite si hay un lector de pantalla como NVDA, JAWS o Narrador activo, manteniendo el silencio para usuarios que ven), <em>Siempre activadas</em> (incluso con síntesis SAPI de Windows sin lector) y <em>Desactivadas</em> (silencio total de voz).</li>
+        <li><strong>Pedir confirmación al eliminar un elemento de favoritos</strong>: Solicita confirmación antes de eliminar cualquier favorito (activada por defecto).</li>
+        <li><strong>Cuenta y Sesión de YouTube (Listas e Historial)</strong>: Permite conectar la sesión activa de YouTube (usando el navegador Firefox/Brave o importando un archivo <code>cookies.txt</code>) para acceder a listas privadas, la lista "Ver más tarde" y el historial de reproducciones. Incluye un botón para probar la conexión en tiempo real.</li>
+      </ul>
+
+      <h3>8.1. Configuración de Cuenta, Cookies y Complementos de Navegador</h3>
+      <p>Para aprovechar al máximo las capacidades de la aplicación y acceder a contenido personalizado de YouTube:</p>
+      
+      <h4>¿Para qué sirven las cookies de sesión?</h4>
+      <ul>
+        <li><strong>Acceso a contenidos privados de tu cuenta</strong>: Permite cargar tu Historial de reproducciones (<kbd>Ctrl + Shift + H</kbd>), tu lista "Ver más tarde" (<kbd>Ctrl + Shift + W</kbd>) y tus listas de reproducción personales (<kbd>Ctrl + Shift + Y</kbd>).</li>
+        <li><strong>Evitar bloqueos y restricciones</strong>: YouTube restringe en ocasiones solicitudes sin autenticar con avisos tipo <em>"Sign in to confirm you're not a bot"</em>, límites de tasa o vídeos con restricción de edad (+18). Con tus cookies de sesión activa, YouTube te identifica como usuario registrado y procesa la descarga o reproducción sin inconvenientes.</li>
+      </ul>
+
+      <h4>Métodos de autenticación admitidos</h4>
+      <p>Desde el diálogo de <strong>Preferencias</strong> (<kbd>Ctrl + ,</kbd> o <kbd>F2</kbd>), apartado <strong>Cuenta y Sesión de YouTube</strong>:</p>
+      <ul>
+        <li><strong>Desactivado</strong>: Modo anónimo predeterminado.</li>
+        <li><strong>Extraer del navegador</strong>: Lee directamente las cookies del navegador seleccionado (Firefox, Chrome, Edge, Brave, Opera, Vivaldi). <em>Nota</em>: En Windows, Google Chrome o Edge pueden bloquear su base de datos con acceso exclusivo mientras están abiertos.</li>
+        <li><strong>Archivo de cookies (<code>cookies.txt</code> exportado - Recomendado)</strong>: La alternativa más robusta, rápida y universal. Es inmune a bloqueos del navegador o del sistema.</li>
+      </ul>
+
+      <h4>Cómo conseguir un complemento y obtener tu archivo <code>cookies.txt</code></h4>
+      <p>Puedes exportar tus cookies fácilmente mediante extensiones seguras y de código abierto:</p>
+      <ol>
+        <li><strong>Instalar la extensión "Get cookies.txt LOCALLY"</strong>:
+          <ul>
+            <li>En Google Chrome, Microsoft Edge, Brave u Opera: Búscala en la <strong>Chrome Web Store</strong>.</li>
+            <li>En Mozilla Firefox: Búscala en el catálogo de complementos <strong>Firefox Add-ons</strong>.</li>
+          </ul>
+        </li>
+        <li><strong>Iniciar sesión en YouTube</strong>: Abre una pestaña en tu navegador, entra en <a href="https://www.youtube.com" target="_blank" rel="noopener">youtube.com</a> e inicia sesión con tu cuenta de Google.</li>
+        <li><strong>Exportar cookies</strong>: Haz clic en el icono de la extensión en la barra de herramientas y pulsa <strong>"Export"</strong> o <strong>"Export as cookies.txt"</strong>. Se descargará el archivo en tu equipo.</li>
+        <li><strong>Configurar en la aplicación</strong>: En el <strong>Descargador de YouTube</strong>, entra en Preferencias (<kbd>Ctrl + ,</kbd>), selecciona <em>Archivo de cookies (cookies.txt exportado)</em>, pulsa <strong>Examinar...</strong> y localiza el archivo descargado. Pulsa <strong>Probar conexión</strong> y haz clic en <strong>Aceptar</strong> para guardar.</li>
+      </ol>
+    </section>
+
+    <section id="actualizaciones">
+      <h2>9. Motor yt-dlp y Descarga Bajo Demanda</h2>
+      <p>El motor <code>yt-dlp</code> no está embebido en el ejecutable, manteniéndolo ligero y modular:</p>
+      <ul>
+        <li><strong>Descarga inicial guiada</strong>: Si no se encuentra en la carpeta, el programa notificará: <em>"no se encuentra la librería necesaria para la ejecución del programa, se va a proceder a su descarga"</em> y la descargará en <code>bin/yt-dlp.exe</code> al aceptar.</li>
+        <li><strong>Actualización accesible</strong>: Pulsa <kbd>Ctrl + U</kbd> para comprobar y actualizar a la versión Nightly en cualquier momento.
+          <ul>
+            <li>Si la versión ya está al día, el diálogo muestra <em>"Ya dispones de la versión Nightly más reciente"</em>, oculta el botón de descarga, enfoca el botón <strong>Aceptar</strong> y permite salir inmediatamente con la tecla <kbd>Escape</kbd>.</li>
+            <li>Si se efectúa la actualización, al completarse al 100% actualiza los datos, oculta el botón de actualizar y permite cerrar con <strong>Aceptar</strong> o la tecla <kbd>Escape</kbd>.</li>
+          </ul>
+        </li>
+        <li><strong>Notificación en bandeja</strong>: Al terminar la descarga, se emite una notificación en la bandeja del sistema: <em>"librería descargada con éxito"</em>, comunicada también por voz para lectores de pantalla.</li>
+      </ul>
+    </section>
+
+    <section id="atajos">
+      <h2>10. Tabla Completa de Atajos de Teclado</h2>
+
+      <h3>Atajos Globales y Acciones Principales</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Atajo de Teclado</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Ctrl + F</kbd></td>
+            <td>Llevar el foco al campo de búsqueda de texto o URL</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + P</kbd></td>
+            <td>Ver o reproducir los vídeos seleccionados / marcados</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + L</kbd></td>
+            <td>Reproducir toda la lista completa en modo continuo</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Q</kbd></td>
+            <td>Añadir los elementos seleccionados a la cola de reproducción secuencial</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + Q</kbd></td>
+            <td>Reproducir la cola de reproducción secuencial acumulada</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + J</kbd></td>
+            <td>Ver y gestionar la cola de reproducción (consultar pistas y eliminar con Supr)</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + D</kbd></td>
+            <td>Iniciar la descarga de los elementos seleccionados</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + O</kbd></td>
+            <td>Abrir la carpeta de descargas en el explorador</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + H</kbd></td>
+            <td>Ver y cargar la lista de favoritos guardados</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + H</kbd></td>
+            <td>Cargar el Historial de reproducciones de YouTube</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + W</kbd></td>
+            <td>Cargar la lista "Ver más tarde" de YouTube</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + Y</kbd></td>
+            <td>Cargar las listas de reproducción de la cuenta de YouTube</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + P</kbd></td>
+            <td>Reproducir en bucle continuo la lista de favoritos</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + B</kbd></td>
+            <td>Añadir o quitar el elemento actual de favoritos</td>
+          </tr>
+          <tr>
+            <td><kbd>Supr</kbd></td>
+            <td>Eliminar el elemento seleccionado de favoritos (con confirmación según preferencias)</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + C</kbd></td>
+            <td>Copiar enlace del elemento seleccionado al portapapeles</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + U</kbd></td>
+            <td>Comprobar y actualizar yt-dlp a la versión Nightly</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + ,</kbd> o <kbd>F2</kbd></td>
+            <td>Abrir la ventana de Preferencias y Opciones</td>
+          </tr>
+          <tr>
+            <td><kbd>F8</kbd></td>
+            <td>Anunciar al lector de pantalla el porcentaje de descarga del vídeo actual</td>
+          </tr>
+          <tr>
+            <td><kbd>F1</kbd></td>
+            <td>Abrir este Manual de Usuario en el navegador web</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + F1</kbd></td>
+            <td>Abrir la Guía rápida de Atajos de Teclado en el navegador</td>
+          </tr>
+          <tr>
+            <td><kbd>Escape</kbd></td>
+            <td>Retroceder un nivel en la jerarquía de navegación (vídeos -> lista -> canal -> favoritos/búsqueda) o limpiar resultados (y cerrar diálogos)</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + Flecha Izquierda</kbd></td>
+            <td>Retroceder al nivel de navegación anterior en la lista de resultados</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + F4</kbd></td>
+            <td>Salir de la aplicación</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Atajos Mnemónicos de Acceso Rápido (<kbd>Alt + Letra</kbd>)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Combinación</th>
+            <th>Control Enfocado / Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Alt + T</kbd></td>
+            <td>Campo de texto de búsqueda (&amp;Términos o URL)</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + I</kbd></td>
+            <td>Selector de T&amp;ipo de búsqueda (Vídeos, Canales, Listas)</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + B</kbd></td>
+            <td>Botón &amp;Buscar</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + L</kbd></td>
+            <td>&amp;Lista de resultados encontrados</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + F</kbd></td>
+            <td>Selector de &amp;Formato de descarga</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + C</kbd></td>
+            <td>Campo de ruta de la &amp;Carpeta de descargas</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + E</kbd></td>
+            <td>Botón &amp;Examinar carpeta de descargas</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + D</kbd></td>
+            <td>Botón &amp;Descargar selección</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + P</kbd></td>
+            <td>Botón Re&amp;producir selección</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + X</kbd></td>
+            <td>Botón Cancelar descarga activa</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Navegación e Interacción en la Lista de Resultados</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Tecla</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Espacio</kbd></td>
+            <td>Marcar / Desmarcar la casilla del elemento enfocado</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + A</kbd></td>
+            <td>Seleccionar y marcar todos los elementos de la lista</td>
+          </tr>
+          <tr>
+            <td><kbd>Enter</kbd></td>
+            <td>En un canal o playlist: listar sus vídeos. En un vídeo: reproducir / abrir reproductor</td>
+          </tr>
+          <tr>
+            <td><kbd>Doble Clic</kbd></td>
+            <td>En un canal o playlist: explorar vídeos. En un vídeo: reproducir / abrir reproductor</td>
+          </tr>
+          <tr>
+            <td><kbd>Tecla Aplicaciones / Clic Derecho</kbd></td>
+            <td>Abrir el menú contextual del elemento (reproducir, descargar, descripción según contexto de vídeo, lista o canal, favoritos, mostrar vídeos del canal, copiar URL del canal, etc.)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Controles en el Reproductor Multimedia</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Tecla</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Espacio</kbd></td>
+            <td>Pausar o reanudar reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Flecha Arriba</kbd></td>
+            <td>Subir volumen (+5%)</td>
+          </tr>
+          <tr>
+            <td><kbd>Flecha Abajo</kbd></td>
+            <td>Bajar volumen (-5%)</td>
+          </tr>
+          <tr>
+            <td><kbd>M</kbd></td>
+            <td>Silenciar o reactivar sonido (Mute)</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + N</kbd> / <kbd>N</kbd> / <kbd>Ctrl + Flecha Derecha</kbd></td>
+            <td>Avanzar a la siguiente canción / pista de la lista en reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + P</kbd> / <kbd>Ctrl + Flecha Izquierda</kbd></td>
+            <td>Retroceder a la canción / pista anterior de la lista en reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Q</kbd></td>
+            <td>Abrir la ventana de la cola de reproducción para consultar pistas y eliminarlas con <kbd>Supr</kbd></td>
+          </tr>
+          <tr>
+            <td><kbd>B</kbd> / <kbd>F</kbd></td>
+            <td>Añadir o eliminar la pista actual de Favoritos</td>
+          </tr>
+          <tr>
+            <td><kbd>Supr</kbd></td>
+            <td>(En la ventana de la cola) Eliminar la pista seleccionada de la cola. (En el reproductor) Eliminar pista de Favoritos.</td>
+          </tr>
+          <tr>
+            <td><kbd>R</kbd></td>
+            <td>Alternar repetición continua (activar / desactivar bucle)</td>
+          </tr>
+          <tr>
+            <td><kbd>F6</kbd></td>
+            <td>Disminuir velocidad de reproducción (-0,1x hasta un mínimo de 0,5x)</td>
+          </tr>
+          <tr>
+            <td><kbd>F7</kbd></td>
+            <td>Aumentar velocidad de reproducción (+0,1x hasta un máximo de 2,0x)</td>
+          </tr>
+          <tr>
+            <td><kbd>F11</kbd></td>
+            <td>Activar o desactivar la ventana de vídeo (alternar modo vídeo y modo solo audio)</td>
+          </tr>
+          <tr>
+            <td><kbd>F8</kbd></td>
+            <td>Anunciar al lector de pantalla el porcentaje de reproducción del vídeo</td>
+          </tr>
+          <tr>
+            <td><kbd>F9</kbd></td>
+            <td>Anunciar al lector de pantalla el tiempo transcurrido</td>
+          </tr>
+          <tr>
+            <td><kbd>F10</kbd></td>
+            <td>Anunciar al lector de pantalla el tiempo restante</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + D</kbd></td>
+            <td>Descargar la pista en reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Escape</kbd></td>
+            <td>Cerrar el reproductor</td>
+          </tr>
+          <tr>
+            <td><kbd>Flecha Derecha</kbd></td>
+            <td>Avanzar 10 segundos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Flecha Izquierda</kbd></td>
+            <td>Retroceder 10 segundos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + Flecha Derecha</kbd></td>
+            <td>Avanzar 1 segundo en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + Flecha Izquierda</kbd></td>
+            <td>Retroceder 1 segundo en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + Alt + Flecha Derecha</kbd></td>
+            <td>Avanzar 5 segundos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + Alt + Flecha Izquierda</kbd></td>
+            <td>Retroceder 5 segundos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + Flecha Derecha</kbd></td>
+            <td>Avanzar 1 minuto en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + Flecha Izquierda</kbd></td>
+            <td>Retroceder 1 minuto en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Alt + Shift + Flecha Derecha</kbd></td>
+            <td>Avanzar 5 minutos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Alt + Shift + Flecha Izquierda</kbd></td>
+            <td>Retroceder 5 minutos en la reproducción</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      <p>Descargador de YouTube &bull; Manual de Usuario y Documentación</p>
+    </footer>
+  </main>
+</body>
+</html>

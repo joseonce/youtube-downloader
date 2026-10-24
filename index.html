@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Descargador de YouTube Accesible para Windows. Aplicación portable para buscar, reproducir de forma continua y descargar vídeos, listas y audios con compatibilidad total para NVDA, JAWS y Narrador.">
+  <meta name="theme-color" content="#0f172a">
+  <title>Descargador de YouTube Accesible | Versión Portable para Windows</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #090d16;
+      --bg-card: #131b2e;
+      --bg-card-hover: #19243d;
+      --border-color: rgba(255, 255, 255, 0.1);
+      --accent-red: #ff0033;
+      --accent-gradient: linear-gradient(135deg, #ff2a55 0%, #ff0033 50%, #d9002c 100%);
+      --accent-cyan: #38bdf8;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --ring-focus: #38bdf8;
+      --shadow-glow: 0 0 35px rgba(255, 42, 85, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(ellipse at 50% 0%, rgba(255, 42, 85, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    /* Enlace de salto para lectores de pantalla */
+    .skip-link {
+      position: absolute;
+      top: -60px;
+      left: 16px;
+      background: var(--accent-cyan);
+      color: #0f172a;
+      padding: 10px 18px;
+      font-weight: 700;
+      border-radius: 6px;
+      z-index: 9999;
+      text-decoration: none;
+      transition: top 0.2s ease;
+    }
+    .skip-link:focus {
+      top: 16px;
+      outline: 3px solid #ffffff;
+    }
+
+    header {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
+      background: rgba(9, 13, 22, 0.7);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--accent-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(255, 0, 51, 0.4);
+    }
+
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: #ffffff;
+    }
+
+    .brand-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-tag {
+      font-size: 0.82rem;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent-cyan);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    main {
+      flex: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 50px 20px 70px;
+      width: 100%;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 20px 0 50px;
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 6px 16px;
+      border-radius: 30px;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 20px;
+    }
+
+    .highlight-gradient {
+      background: linear-gradient(135deg, #ffffff 40%, #ff6b8b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-lead {
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+      color: var(--text-secondary);
+      max-width: 720px;
+      margin: 0 auto 36px;
+    }
+
+    /* Botón de descarga principal */
+    .cta-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 40px;
+    }
+
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--accent-gradient);
+      color: #ffffff;
+      padding: 16px 36px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      border-radius: 12px;
+      text-decoration: none;
+      box-shadow: 0 8px 24px rgba(255, 0, 51, 0.35);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-download:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(255, 0, 51, 0.5), var(--shadow-glow);
+    }
+
+    .btn-download:focus-visible {
+      outline: 4px solid var(--ring-focus);
+      outline-offset: 3px;
+    }
+
+    .btn-download svg {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+    }
+
+    .download-meta {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* Grid de características */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 22px;
+      margin: 40px 0 60px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 28px 24px;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-3px);
+    }
+
+    .card-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-cyan);
+      margin-bottom: 6px;
+    }
+
+    .card-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .card h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .card p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    /* Pasos para empezar */
+    .steps-section {
+      background: rgba(19, 27, 46, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 36px 30px;
+      margin-bottom: 60px;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .steps-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+    }
+
+    .step-item {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1rem;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .step-item h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .step-item p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-color);
+      padding: 32px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      background: rgba(9, 13, 22, 0.8);
+    }
+
+    footer a {
+      color: var(--accent-cyan);
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    kbd {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: monospace;
+      font-size: 0.85em;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Accesibilidad: Enlace directo al contenido principal -->
+  <a href="#contenido" class="skip-link">Saltar al contenido principal</a>
+
+  <header role="banner">
+    <div class="header-container">
+      <a href="https://buscaapps.com/youtube/" class="brand" aria-label="Inicio Descargador de YouTube">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+        </div>
+        <span class="brand-name">Descargador de YouTube</span>
+      </a>
+      <span class="nav-tag" aria-label="Versión actual 1.5.9">v1.5.9 Portable</span>
+    </div>
+  </header>
+
+  <main id="contenido" role="main">
+
+    <!-- Hero Section -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="badge-pill">
+        <span class="badge-dot" aria-hidden="true"></span>
+        <span>Versión 1.5.9 &bull; Windows 10 y 11 &bull; 100% Portable</span>
+      </div>
+
+      <h1 id="hero-title">
+        Buscador, Reproductor y <br>
+        <span class="highlight-gradient">Descargador Accesible</span>
+      </h1>
+
+      <p class="hero-lead">
+        Una aplicación de escritorio rápida y moderna, diseñada específicamente para garantizar la <strong>accesibilidad universal</strong>, navegación completa por teclado y compatibilidad total con lectores de pantalla.
+      </p>
+
+      <div class="cta-container">
+        <a href="YouTubeDownloader.zip" class="btn-download" id="btn-descarga" download>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          <span>Descargar Versión Portable</span>
+        </a>
+        <div class="download-meta">
+          Archivo ZIP (~121 MB) &bull; Sin instalación requerida &bull; Actualizaciones integradas
+        </div>
+      </div>
+    </section>
+
+    <!-- Características principales -->
+    <section aria-labelledby="features-title">
+      <h2 id="features-title" class="section-title">Diseñado para la máxima libertad y accesibilidad</h2>
+
+      <div class="features-grid">
+        <article class="card">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </div>
+          <h3>Búsqueda Nativa y Rápida</h3>
+          <p>Busca directamente por términos clave o pega URLs de vídeos individuales, canales enteros o listas de reproducción de YouTube.</p>
+        </article>
+
+        <article class="card">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          </div>
+          <h3>Reproductor Continuo Integrado</h3>
+          <p>Escucha pistas sueltas o reproduce listas completas en secuencia continua sin salir de la app, con control multimedia por teclado (<kbd>Espacio</kbd>, <kbd>Ctrl+Flechas</kbd>).</p>
+        </article>
+
+        <article class="card">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+          </div>
+          <h3>Lectores de Pantalla (NVDA, JAWS)</h3>
+          <p>Retroalimentación por voz y anuncios accesibles que informan del avance de descarga cada 25% y resultados encontrados sin desubicar el foco.</p>
+        </article>
+
+        <article class="card">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          </div>
+          <h3>Múltiples Formatos</h3>
+          <p>Descarga en vídeo de alta definición MP4, audio MP3 de máxima fidelidad (320 kbps) o extrae el audio original M4A sin recodificar.</p>
+        </article>
+
+        <article class="card">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          </div>
+          <h3>Actualización Automática Portable</h3>
+          <p>La aplicación detecta nuevas versiones en <strong>buscaapps.com</strong> y se actualiza sola sin tocar tus favoritos ni configuraciones personales.</p>
+        </article>
+
+        <article class="card">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+          </div>
+          <h3>100% Portable</h3>
+          <p>No requiere permisos de administrador ni instaladores. Descomprime en tu carpeta favorita o llévala en una memoria USB a cualquier equipo.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Cómo usarlo -->
+    <section class="steps-section" aria-labelledby="steps-title">
+      <h2 id="steps-title" class="section-title">Cómo empezar en 3 sencillos pasos</h2>
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-num" aria-hidden="true">1</div>
+          <h3>Descarga el ZIP</h3>
+          <p>Pulsa el botón de descarga para guardar <code>YouTubeDownloader.zip</code> en tu ordenador.</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num" aria-hidden="true">2</div>
+          <h3>Descomprime</h3>
+          <p>Extrae el archivo en la ubicación que prefieras (Escritorio, Documentos o un pendrive).</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num" aria-hidden="true">3</div>
+          <h3>Ejecuta y Disfruta</h3>
+          <p>Abre <code>YouTubeDownloader.exe</code>. ¡Todo está listo para buscar, reproducir y descargar!</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer role="contentinfo">
+    <p>&copy; 2026 Descargador de YouTube Accesible &bull; Desarrollado por <strong>José Manuel Fernández Cortés</strong> &bull; Alojado en <a href="https://buscaapps.com/">buscaapps.com</a></p>
+  </footer>
+
+</body>
+</html>

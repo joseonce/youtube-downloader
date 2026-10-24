@@ -1,0 +1,40 @@
+# Configuración de usuario (solicitado ignorar)
+config/
+
+# Paquete compilado ZIP (pesa >100 MB, se sube en GitHub Releases)
+YouTubeDownloader.zip
+*.zip
+
+# Carpetas y archivos de compilación y empaquetado (PyInstaller)
+build/
+dist/
+*.spec.bak
+*.pyz
+test_zip*
+*.exe
+
+# Binarios pesados externos (ffmpeg, ffprobe, yt-dlp)
+bin/
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.venv
+env/
+venv/
+
+# Archivos multimedia de prueba o temporales
+*.mp3
+*.wav
+*.mp4
+*.m4a
+*.part
+*.ytdl
+
+# Archivos del sistema y del editor
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini

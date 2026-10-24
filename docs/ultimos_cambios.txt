@@ -1,0 +1,180 @@
+========================================================================
+DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.5.9)
+Fecha: 20 de Octubre de 2026
+========================================================================
+
+NOVEDADES EN LA VERSIÓN 1.5.9:
+
+1. Tecla Enter en la Lista para Reproducir en lugar de Descargar:
+   - Al pulsar la tecla Enter (o doble clic) sobre cualquier elemento de la lista de resultados, se abre de inmediato el reproductor multimedia integrado para reproducirlo, o se explora su catálogo si es una lista o canal.
+   - Para descargar elementos se utiliza el botón Descargar o el atajo Ctrl + D.
+
+2. Eliminación por Completo del Menú Plataformas y Descarga Universal por Enlace:
+   - Se suprime el menú secundario Plataformas de la barra de menús para simplificar la navegación.
+   - El descargador procesa de forma nativa e inteligente cualquier enlace directo pegado en el cuadro de búsqueda perteneciente a cualquiera de las más de 2.000 plataformas soportadas por yt-dlp (SoundCloud, Bandcamp, Bilibili, TikTok, Twitch, Vimeo, RTVE, etc.).
+
+3. Mejoras Internas en el Ciclo de Descarga y Finalización de Transferencias:
+   - Optimización integral de la gestión de eventos y estado al concluir las descargas en curso.
+   - Asegura la detención instantánea de las señales acústicas de espera, la sincronización inmediata del estado de los controles (botón Descargar disponible y Cancelar desactivado) y la emisión puntual del aviso sonoro de finalización.
+
+4. Mejoras Internas en la Exploración y Navegación de Listas de Reproducción y Canales:
+   - Optimización interna en el procesamiento y apertura de elementos contenedores al pulsar la tecla Enter o Intro, permitiendo explorar fluidamente el catálogo de pistas de listas y canales.
+   - Plena disponibilidad y activación inmediata de sus opciones de menú contextual y operaciones asociadas.
+
+5. Señal Sonora Contundente y con Mayor Volumen al Terminar Descargas:
+   - Nuevo tono armónico y vibrante de finalización (completado.wav) con amplitud optimizada (~75%), audible y reconfortante para saber inmediatamente que todas las descargas han finalizado.
+
+6. Sincronización de Versión y Actualización Automática a 1.5.9:
+   - Incremento y sincronización de versión a 1.5.9 para habilitar la detección de nueva versión y auto-actualización fluida en usuarios con versión 1.5.8.
+
+7. Limpieza Automática de Extensiones Redundantes en Títulos y Descargas:
+   - Detecta y elimina extensiones de vídeo o audio que los creadores hayan incluido en el título original del contenido en YouTube (como .flv, .mp4, .mp3, .avi, .mkv, etc.).
+   - Al descargar en MP3, M4A, FLAC, WAV o MP4, el archivo resultante ya no tendrá dobles extensiones confusas (por ejemplo, 'nombre.flv.mp3' o 'cancion.mp3.mp3' ahora se guarda limpiamente como 'nombre.mp3' o 'cancion.mp3').
+   - Los títulos mostrados en la lista de resultados, favoritos y reproductor quedan limpios y legibles para lectores de pantalla.
+
+8. Recuperación Automática de Foco en el Reproductor tras Cambio de Tarea:
+   - Al cambiar de tarea o aplicación (Alt + Tab) y regresar a YouTubeDownloader con el reproductor abierto, la aplicación eleva inmediatamente la ventana del reproductor y le transfiere el foco.
+   - Permite controlar directamente la reproducción, alternar el modo vídeo con F11, pausar/reanudar con Espacio o P, variar velocidad y usar todos los atajos sin quedar desorientado en la ventana principal.
+   - Delegación de seguridad de atajos de reproducción y vídeo desde la ventana principal si el usuario interactúa con ella.
+
+9. Dispositivo de Salida Exclusivo para el Reproductor con Total Aislamiento de TTS:
+   - Nuevo apartado accesible 'Dispositivo de salida de audio' dentro de 'Reproducción y Favoritos' en Preferencias (Ctrl + , / F2).
+   - La selección de salida de audio aplica exclusivamente al reproductor multimedia integrado.
+   - Las locuciones TTS y lectores de pantalla (NVDA, JAWS, Narrador) no son afectados en ningún caso por este ajuste, manteniéndose siempre en el dispositivo habitual del sistema.
+   - Lista desplegable de tarjetas de sonido, auriculares y altavoces con prueba interactiva de sonido y actualización en caliente.
+
+10. Locuciones TTS Silenciadas Fuera de Foco:
+   - Las locuciones del sintetizador de voz y avisos para lectores de pantalla solo se emiten cuando YouTubeDownloader tiene el foco.
+   - Si estás trabajando en otra ventana o aplicación, los avisos en segundo plano no interrumpirán tu flujo de trabajo ni hablarán por encima.
+
+11. Detección Inteligente de Lectores de Pantalla y Modo de Locuciones Configurable:
+   - Los usuarios que ven ya no escucharán locuciones de voz innecesarias: el programa detecta automáticamente si hay un lector de pantalla en ejecución (NVDA, JAWS, Dolphin, Narrador de Windows) y, si no lo hay, evita activar la síntesis SAPI5.
+   - Nueva opción en Preferencias (Ctrl + , / F2) dentro de 'Reproducción y Favoritos' para elegir el modo de locuciones: 'Automático (solo si se detecta un lector activo)', 'Siempre activadas' o 'Desactivadas'.
+
+12. Búsqueda y Enlace Directo a Canales y Listas de Reproducción como Contenedores:
+   - Al pegar o buscar una URL de un canal (ej. @Canal o youtube.com/channel/...) o de una lista de reproducción (youtube.com/playlist?list=...), la aplicación devuelve el canal o lista como un único elemento en la lista de resultados mostrando su nombre, en lugar de listar directamente todos sus vídeos.
+   - Desde este resultado, se puede descargar todo el canal o la lista completa con Ctrl + D o el botón Descargar (con sugerencia automática de subcarpeta con su nombre).
+   - Permite agregar el canal o lista directamente a favoritos con Ctrl + F o moverlo de lista con Ctrl + M.
+   - Pulsando Enter o Doble Clic sobre el canal o lista, se accede a explorar todos sus vídeos individuales.
+
+========================================================================
+NOVEDADES EN LA VERSIÓN 1.5.7:
+
+1. Coherencia y Reorganización de Menús sin Duplicidades:
+   - Nuevo menú dedicado 'Reproducción' que unifica de forma limpia y exclusiva todas las acciones
+     de escucha y cola: 'Ver / Reproducir selección (Ctrl+P)', 'Reproducir toda la lista continua (Ctrl+L)',
+     'Añadir a la cola (Ctrl+Q)', 'Ver cola (Ctrl+J)', 'Reproducir cola (Ctrl+Shift+Q)' y 'Vaciar cola'.
+   - Eliminación de accesos redundantes a la cola que estaban duplicados en los menús 'Edición' y 'Favoritos'.
+   - El menú 'Favoritos' queda reservado exclusivamente a operaciones de favoritos,
+     y 'Edición' a la gestión de selección, portapapeles y propiedades.
+   - Atajo de teclado global 'Ctrl + M' incorporado en aceleradores para alternar entre listas de favoritos.
+
+2. Atenuación Dinámica y Contextual de Menús y Botonera:
+   - Desactivación inteligente (estado atenuado/disabled) de acciones que carecen de sentido según el contexto:
+     * 'Reproducir toda la lista continua (Ctrl+L)': atenuado si la lista solo contiene 1 ítem o está vacía.
+     * 'Descargar todos los vídeos de esta lista (Ctrl+Shift+D)': atenuado con 1 o 0 ítems.
+     * 'Marcar o desmarcar elemento (Espacio)', 'Seleccionar todos (Ctrl+A)', 'Deseleccionar todos' e
+       'Invertir selección': atenuados si solo hay 1 ítem o lista vacía.
+     * 'Ver cola de reproducción (Ctrl+J)', 'Reproducir cola (Ctrl+Shift+Q)' y 'Vaciar cola':
+       atenuados tanto en botones de la ventana como en menús y menú contextual mientras la cola esté vacía.
+     * Botones de descarga y reproducción atenuados cuando la lista no tiene resultados.
+   - Actualización reactiva instantánea al abrir menús ('EVT_MENU_OPEN'), al cambiar la selección
+     o al añadir/eliminar elementos de la cola.
+
+3. Atajos de Navegación Multimedia en el Reproductor:
+   - 'Ctrl + P': retroceder a la pista / canción anterior de la lista.
+   - 'Ctrl + N' (o tecla 'N'): avanzar a la pista / canción siguiente de la lista.
+   - Tecla 'P' (o Espacio): pausar o reanudar la reproducción al instante.
+
+2. Visualización y Gestión de la Cola de Reproducción:
+   - Nueva ventana accesible para consultar la lista de pistas en cola.
+   - Atajo 'Q' y botón "Ver cola" en el reproductor multimedia.
+   - Atajo global 'Ctrl + J' y botón "Ver cola..." en la ventana principal.
+   - Tecla 'Supr' (Delete) para eliminar cualquier pista seleccionada de la cola con anuncio del total restante.
+   - Tecla 'Enter' para saltar y reproducir inmediatamente la pista seleccionada.
+
+3. Cola de Reproducción Secuencial (Multi-Favoritos y Búsquedas):
+   - Atajo accesible 'Ctrl + Q' y opción en menú contextual ("Añadir a la cola de reproducción")
+     para acumular temas de múltiples listas de favoritos o búsquedas diferentes.
+   - Atajo accesible 'Ctrl + Shift + Q' y botón "Reproducir cola" para reproducir
+     secuencialmente todas las pistas acumuladas.
+   - Integración dinámica: si el reproductor ya se encuentra abierto, añadir elementos
+     con 'Ctrl + Q' o menú contextual los incorpora directamente a la lista activa en tiempo real.
+   - Botón y opción en menú para vaciar la cola cuando se desee iniciar una nueva sesión.
+
+2. Anuncio progresivo de descargas concurrentes añadidas:
+   - Al poner a descargar nuevos vídeos mientras ya hay una descarga en proceso, el lector
+     de pantalla anuncia de forma inmediata y concisa el total pendiente: "2 descargas", "3 descargas", etc.
+
+3. Coherencia y unificación en descargas de contenedores completos:
+   - Atajo global 'Ctrl + Shift + D' y menú contextual unificado:
+     * "Descargar todos los vídeos de este canal" al estar sobre un canal.
+     * "Descargar todos los vídeos de esta lista" al estar sobre una lista de reproducción.
+     * "Descargar todos los vídeos de esta lista de favoritos" al explorar una lista temática.
+   - Acceso disponible en todo momento desde el menú Edición y Favoritos.
+
+4. Resumen conciso al solicitar el nombre de la subcarpeta:
+   - Reducción del texto del diálogo y optimización de la locución para lectores de pantalla
+     al descargar múltiples elementos: "Subcarpeta para X vídeos/elementos:".
+
+------------------------------------------------------------------------
+NOVEDADES EN LA VERSIÓN 1.5.6:
+
+1. Modo Aleatorio (Shuffle) en el Reproductor Multimedia:
+   - Nuevo botón "Aleatorio: Activado/Desactivado" en la botonera del reproductor.
+   - Atajo accesible mediante la tecla 'A' para alternar instantáneamente el modo.
+   - Al terminar una pista o pulsar siguiente ('N' o 'Ctrl + Flecha Derecha'),
+     el reproductor selecciona una canción al azar de la lista sin repetir la actual.
+
+2. Nuevos controles y distribución de teclado en el Reproductor:
+   - Tecla 'P': Pausar o reanudar la reproducción.
+   - Tecla 'S': Detener la reproducción (reinicia el contador y posición a 0).
+   - Nuevo botón accesible "Detener" en los controles.
+   - Barra espaciadora liberada: ya no fuerza la pausa de la pista, permitiendo
+     accionar con total naturalidad cualquier botón enfocado en la ventana.
+
+3. Navegación jerárquica escalonada con Favoritos y listas temáticas:
+   - Al consultar favoritos temáticos (o explorar canales y listas anidadas),
+     la tecla 'Escape' retrocede ordenadamente paso a paso por toda la ruta
+     (por ejemplo: vídeos -> listas del canal -> canal -> lista de favoritos -> selección de listas -> raíz).
+   - Evita la pérdida involuntaria de contexto o el cierre prematuro de resultados.
+
+4. Descarga directa de Canales y Listas de Reproducción completas:
+   - Nueva opción en el menú contextual ("Descargar vídeos de este canal" / "Descargar todos los vídeos de esta lista")
+     y atajo 'Ctrl + D' sobre canales o playlists seleccionados.
+   - Extrae automáticamente todos los vídeos del contenedor y presenta el diálogo
+     de confirmación de subcarpeta sugiriendo el nombre del canal o lista.
+
+5. Locución concisa durante descargas de cola:
+   - Mientras se descargan lotes de vídeos, el lector de pantalla anuncia de forma
+     limpia y precisa el orden de la cola (por ejemplo: "1 de 4", "2 de 4", etc.)
+     sin locuciones redundantes de porcentajes parciales ni textos duplicados.
+
+------------------------------------------------------------------------
+RESUMEN DE VERSIONES RECIENTES:
+
+[v1.5.5]
+- Atajo F8 para anunciar porcentaje de descarga o reproducción actual.
+- Sonido armónico de espera durante la obtención de descripciones contextuales.
+
+[v1.5.4]
+- Barra de progreso del reproductor excluida del tabulador para mayor agilidad.
+- Sugerencia inteligente de subcarpeta para descargas múltiples.
+- Navegación escalonada con Escape entre vídeos, listas y canales.
+- Consulta accesible de descripciones de vídeos, listas o canales.
+- Sonido tenue y armónico de espera periódico durante las descargas.
+
+[v1.5.3]
+- Mover/cambiar elementos entre listas de favoritos (submenú y Ctrl + M).
+- Atajo Ctrl + Shift + C y botón para copiar enlace en el reproductor.
+
+[v1.5.2]
+- Diálogo de organización en subcarpetas para descargas múltiples.
+- Formatos de audio sin pérdida FLAC y PCM WAV sin comprimir.
+- Precarga predictiva de audio y reproducción continua sin latencia.
+- Caché en memoria para repetición instantánea de pistas.
+
+[v1.5.1]
+- Soporte para autenticación de cookies y sesiones privadas.
+- Verificación interactiva de la sesión en Preferencias.
+- Limpieza ágil de resultados con Escape desde el nivel principal.

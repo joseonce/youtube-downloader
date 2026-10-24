@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Descargador de YouTube - Atajos de Teclado</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-color: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --accent: #f43f5e;
+      --border-color: #334155;
+      --table-stripe: #182234;
+      --kbd-bg: #334155;
+      --kbd-border: #475569;
+      --code-bg: #0b1120;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg-color: #f8fafc;
+        --card-bg: #ffffff;
+        --text-color: #0f172a;
+        --text-muted: #475569;
+        --primary: #0284c7;
+        --primary-hover: #0369a1;
+        --accent: #e11d48;
+        --border-color: #e2e8f0;
+        --table-stripe: #f1f5f9;
+        --kbd-bg: #e2e8f0;
+        --kbd-border: #cbd5e1;
+        --code-bg: #f1f5f9;
+      }
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.65;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 850px;
+      margin: 0 auto;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 2.2rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    header {
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 1.2rem;
+      margin-bottom: 1.8rem;
+    }
+    h1 {
+      font-size: 2rem;
+      color: var(--primary);
+      margin-bottom: 0.4rem;
+      font-weight: 700;
+    }
+    .subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+    }
+    h2 {
+      font-size: 1.35rem;
+      color: var(--primary);
+      margin-top: 2rem;
+      margin-bottom: 0.8rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.35rem;
+    }
+    kbd {
+      display: inline-block;
+      padding: 0.18rem 0.45rem;
+      font-size: 0.88rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--text-color);
+      background-color: var(--kbd-bg);
+      border: 1px solid var(--kbd-border);
+      border-radius: 5px;
+      box-shadow: 0 2px 0 var(--kbd-border);
+      vertical-align: baseline;
+      white-space: nowrap;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.2rem 0 2rem 0;
+      font-size: 0.95rem;
+    }
+    th, td {
+      padding: 0.7rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    th {
+      background-color: var(--code-bg);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background-color: var(--table-stripe);
+    }
+    .link-box {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: var(--code-bg);
+      border-radius: 8px;
+      text-align: center;
+    }
+    a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    footer {
+      margin-top: 2.5rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid var(--border-color);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Atajos de Teclado y Accesibilidad</h1>
+      <p class="subtitle">Descargador de YouTube &bull; Guía Rápida de Referencia</p>
+    </header>
+
+    <section>
+      <h2>1. Atajos Globales y Acciones Principales</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Combinación</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Ctrl + F</kbd></td>
+            <td>Llevar el foco al campo de búsqueda de texto o URL</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + P</kbd></td>
+            <td>Ver o reproducir los vídeos seleccionados / marcados</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + L</kbd></td>
+            <td>Reproducir toda la lista completa en modo continuo</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Q</kbd></td>
+            <td>Añadir los elementos seleccionados a la cola de reproducción secuencial</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + Q</kbd></td>
+            <td>Reproducir la cola de reproducción secuencial acumulada</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + J</kbd></td>
+            <td>Ver y gestionar la cola de reproducción acumulada (eliminar pistas con Supr)</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + N</kbd> / <kbd>N</kbd> / <kbd>Ctrl + Flecha Derecha</kbd></td>
+            <td>(En el reproductor) Avanzar a la siguiente canción de la lista</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + P</kbd> / <kbd>Ctrl + Flecha Izquierda</kbd></td>
+            <td>(En el reproductor) Retroceder a la canción anterior de la lista</td>
+          </tr>
+          <tr>
+            <td><kbd>P</kbd> / <kbd>Espacio</kbd></td>
+            <td>(En el reproductor) Pausar o reanudar reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Q</kbd></td>
+            <td>(En el reproductor) Ver la cola de reproducción activa y eliminar pistas con Supr</td>
+          </tr>
+          <tr>
+            <td><kbd>S</kbd></td>
+            <td>(En el reproductor) Detener la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>A</kbd></td>
+            <td>(En el reproductor) Activar o desactivar modo aleatorio (Shuffle)</td>
+          </tr>
+          <tr>
+            <td><kbd>Espacio</kbd></td>
+            <td>(En el reproductor) Accionar o pulsar el botón enfocado</td>
+          </tr>
+          <tr>
+            <td><kbd>Flecha Arriba / Abajo</kbd></td>
+            <td>(En el reproductor) Subir o bajar volumen (+/- 5%)</td>
+          </tr>
+          <tr>
+            <td><kbd>M</kbd></td>
+            <td>(En el reproductor) Silenciar o activar sonido (Mute)</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + D</kbd></td>
+            <td>Iniciar la descarga de los elementos seleccionados (o de todos los vídeos de un canal o lista)</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + D</kbd></td>
+            <td>Descargar todos los vídeos de la lista, canal o lista de favoritos actual</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + O</kbd></td>
+            <td>Abrir la carpeta de descargas en el Explorador de Windows</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + H</kbd></td>
+            <td>Ver y cargar la lista de favoritos guardados</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + H</kbd></td>
+            <td>Cargar el Historial de reproducciones de YouTube</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + W</kbd></td>
+            <td>Cargar la lista "Ver más tarde" de YouTube</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + Y</kbd></td>
+            <td>Cargar las listas de reproducción de la cuenta de YouTube</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + P</kbd></td>
+            <td>Reproducir de forma continua la lista de favoritos</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + B</kbd></td>
+            <td>Añadir o eliminar el elemento actual de favoritos</td>
+          </tr>
+          <tr>
+            <td><kbd>Supr</kbd></td>
+            <td>Eliminar el elemento seleccionado de favoritos (con confirmación según preferencias)</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + C</kbd></td>
+            <td>Copiar enlace del elemento seleccionado al portapapeles</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + U</kbd></td>
+            <td>Comprobar y actualizar yt-dlp a la versión Nightly</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + U</kbd></td>
+            <td>Comprobar actualizaciones de la aplicación en buscaapps.com</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + ,</kbd> o <kbd>F2</kbd></td>
+            <td>Abrir la ventana de Preferencias y Opciones</td>
+          </tr>
+          <tr>
+            <td><kbd>F8</kbd></td>
+            <td>Anunciar al lector de pantalla el porcentaje de descarga del vídeo actual</td>
+          </tr>
+          <tr>
+            <td><kbd>F1</kbd></td>
+            <td>Abrir el Manual de Usuario completo en el navegador</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + F1</kbd></td>
+            <td>Abrir esta guía de atajos de teclado en el navegador</td>
+          </tr>
+          <tr>
+            <td><kbd>Escape</kbd></td>
+            <td>Limpiar resultados de búsqueda y volver al campo de texto (o cerrar diálogos)</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + F4</kbd></td>
+            <td>Salir de la aplicación</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>2. Atajos Mnemónicos de Acceso Rápido (<kbd>Alt + Letra</kbd>)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Combinación</th>
+            <th>Control Enfocado / Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Alt + T</kbd></td>
+            <td>Campo de texto de búsqueda (&amp;Términos o URL)</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + I</kbd></td>
+            <td>Selector de T&amp;ipo de búsqueda (Vídeos, Canales, Listas)</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + B</kbd></td>
+            <td>Botón &amp;Buscar</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + L</kbd></td>
+            <td>&amp;Lista de resultados encontrados</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + F</kbd></td>
+            <td>Selector de &amp;Formato de descarga</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + C</kbd></td>
+            <td>Campo de ruta de la &amp;Carpeta de descargas</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + E</kbd></td>
+            <td>Botón &amp;Examinar carpeta de descargas</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + D</kbd></td>
+            <td>Botón &amp;Descargar selección</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + P</kbd></td>
+            <td>Botón Re&amp;producir selección</td>
+          </tr>
+          <tr>
+            <td><kbd>Alt + X</kbd></td>
+            <td>Botón Cancelar descarga activa</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>3. Navegación e Interacción en la Lista de Resultados</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Tecla</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Flechas Arriba / Abajo</kbd></td>
+            <td>Navegar entre los elementos (filas) de la lista</td>
+          </tr>
+          <tr>
+            <td><kbd>Flechas Izquierda / Derecha</kbd></td>
+            <td>Navegar y anunciar las columnas (Título, Canal, Duración, Visitas) de la fila actual con el lector de pantalla</td>
+          </tr>
+          <tr>
+            <td><kbd>Espacio</kbd></td>
+            <td>Marcar o desmarcar la casilla del elemento enfocado (puedes marcar pistas salteadas como la 1ª, 3ª, 6ª y 10ª para reproducirlas en secuencia continua con <kbd>Ctrl + P</kbd>)</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + A</kbd></td>
+            <td>Seleccionar y marcar todos los elementos de la lista</td>
+          </tr>
+          <tr>
+            <td><kbd>Enter</kbd></td>
+            <td>En un canal o playlist: listar sus vídeos. En un vídeo: reproducir / abrir reproductor</td>
+          </tr>
+          <tr>
+            <td><kbd>Doble Clic</kbd></td>
+            <td>En un canal o playlist: explorar contenidos. En un vídeo: reproducir / abrir reproductor</td>
+          </tr>
+          <tr>
+            <td><kbd>Tecla Aplicaciones / Clic Derecho</kbd></td>
+            <td>Abrir el menú contextual con opciones avanzadas (reproducir, descargar, favoritos, mostrar vídeos del canal, copiar URL del canal, etc.)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>4. Controles Dentro del Reproductor Multimedia (VLC)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Tecla</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>P</kbd> / <kbd>Espacio</kbd></td>
+            <td>Pausar o reanudar reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Flecha Arriba</kbd></td>
+            <td>Subir volumen (+5%)</td>
+          </tr>
+          <tr>
+            <td><kbd>Flecha Abajo</kbd></td>
+            <td>Bajar volumen (-5%)</td>
+          </tr>
+          <tr>
+            <td><kbd>M</kbd></td>
+            <td>Silenciar o reactivar sonido (Mute)</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + N</kbd> / <kbd>N</kbd> / <kbd>Ctrl + Flecha Derecha</kbd></td>
+            <td>Avanzar a la siguiente canción / pista de la lista en reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + P</kbd> / <kbd>Ctrl + Flecha Izquierda</kbd></td>
+            <td>Retroceder a la canción / pista anterior de la lista en reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Q</kbd></td>
+            <td>Abrir la lista / cola de reproducción activa para consultar pistas y eliminarlas con <kbd>Supr</kbd></td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + C</kbd> / <kbd>Ctrl + C</kbd></td>
+            <td>Copiar el enlace del vídeo en reproducción al portapapeles</td>
+          </tr>
+          <tr>
+            <td><kbd>B</kbd> / <kbd>F</kbd></td>
+            <td>Añadir o eliminar la pista actual de Favoritos</td>
+          </tr>
+          <tr>
+            <td><kbd>Supr</kbd></td>
+            <td>(En la ventana de la cola) Eliminar la pista seleccionada de la cola. (En el reproductor) Eliminar pista de Favoritos.</td>
+          </tr>
+          <tr>
+            <td><kbd>R</kbd></td>
+            <td>Alternar repetición continua (activar / desactivar bucle)</td>
+          </tr>
+          <tr>
+            <td><kbd>F6</kbd></td>
+            <td>Disminuir velocidad de reproducción (-0,1x hasta un mínimo de 0,5x)</td>
+          </tr>
+          <tr>
+            <td><kbd>F7</kbd></td>
+            <td>Aumentar velocidad de reproducción (+0,1x hasta un máximo de 2,0x)</td>
+          </tr>
+          <tr>
+            <td><kbd>F11</kbd></td>
+            <td>Activar o desactivar la ventana de vídeo (alternar modo vídeo y modo solo audio)</td>
+          </tr>
+          <tr>
+            <td><kbd>F8</kbd></td>
+            <td>Anunciar al lector de pantalla el porcentaje de reproducción del vídeo</td>
+          </tr>
+          <tr>
+            <td><kbd>F9</kbd></td>
+            <td>Anunciar al lector de pantalla el tiempo transcurrido</td>
+          </tr>
+          <tr>
+            <td><kbd>F10</kbd></td>
+            <td>Anunciar al lector de pantalla el tiempo restante</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + D</kbd></td>
+            <td>Descargar la pista en reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Escape</kbd></td>
+            <td>Cerrar el reproductor y volver a la ventana principal</td>
+          </tr>
+          <tr>
+            <td><kbd>Flecha Derecha</kbd></td>
+            <td>Avanzar 10 segundos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Flecha Izquierda</kbd></td>
+            <td>Retroceder 10 segundos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + Flecha Derecha</kbd></td>
+            <td>Avanzar 1 segundo en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + Flecha Izquierda</kbd></td>
+            <td>Retroceder 1 segundo en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + Alt + Flecha Derecha</kbd></td>
+            <td>Avanzar 5 segundos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Shift + Alt + Flecha Izquierda</kbd></td>
+            <td>Retroceder 5 segundos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + Flecha Derecha</kbd></td>
+            <td>Avanzar 1 minuto en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Shift + Flecha Izquierda</kbd></td>
+            <td>Retroceder 1 minuto en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Alt + Shift + Flecha Derecha</kbd></td>
+            <td>Avanzar 5 minutos en la reproducción</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl + Alt + Shift + Flecha Izquierda</kbd></td>
+            <td>Retroceder 5 minutos en la reproducción</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="link-box" style="text-align: left; margin: 1rem 0; font-size: 0.95rem;">
+        <strong>Nota sobre el uso de las flechas en el reproductor:</strong>
+        <ul style="margin: 0.5rem 0 0 1.2rem; line-height: 1.6;">
+          <li><kbd>Ctrl + Flecha Derecha / Izquierda</kbd> (o combinaciones <kbd>Ctrl + N</kbd> / <kbd>Ctrl + P</kbd> y tecla <kbd>N</kbd>): Cambian de <strong>canción completa</strong> en la lista en reproducción (avanzar a la siguiente o retroceder a la anterior).</li>
+          <li><kbd>Flechas Izquierda / Derecha</kbd> (solas o con <kbd>Shift</kbd> / <kbd>Alt</kbd>): Desplazan la posición de tiempo (10s, 1s, 5s, 1m, 5m) <strong>dentro de la misma canción</strong>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="link-box">
+      <a href="manual.html">&larr; Volver al Manual de Usuario Completo</a>
+    </div>
+
+    <footer>
+      <p>Descargador de YouTube &bull; Guía de Atajos de Teclado</p>
+    </footer>
+  </main>
+</body>
+</html>
