@@ -13,7 +13,7 @@ Una herramienta de escritorio rápida, portable y 100% accesible diseñada para 
 ---
 
 ## Datos de la aplicación
-- **Versión de la aplicación:** 1.5.9
+- **Versión de la aplicación:** 1.6.0
 - **Precio:** Gratis (código abierto)
 - **Idioma:** Español
 - **En la sección de:** Audio e Imagen / Utilidades

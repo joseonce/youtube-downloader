@@ -18,9 +18,10 @@ from update_transaction import UPDATE_SCRIPT
 import wx
 import accessibility
 
-APP_VERSION = "1.5.9"
+APP_VERSION = "1.6.0"
 APP_NAME = "Descargador de YouTube"
-CHECK_UPDATE_URL = "https://buscaapps.com/youtube/version.json"
+CHECK_UPDATE_URL = "https://raw.githubusercontent.com/joseonce/youtube-downloader/main/version.json"
+FALLBACK_UPDATE_URL = "https://buscaapps.com/youtube/version.json"
 
 
 def get_base_dir():
@@ -45,26 +46,29 @@ def parse_version(v_str):
 
 def check_for_app_update():
     """
-    Consulta buscaapps.com/youtube/version.json.
+    Consulta version.json en GitHub (servidor principal) o buscaapps.com (servidor de respaldo).
     Retorna el diccionario con la información si hay una versión superior,
-    o None si ya está al día o aún no se ha publicado version.json en el servidor.
+    o None si ya está al día o aún no se ha publicado version.json.
     """
-    try:
-        req = urllib.request.Request(
-            CHECK_UPDATE_URL,
-            headers={"User-Agent": f"YouTubeDownloader/{APP_VERSION} (Portable; Windows)"}
-        )
-        with urllib.request.urlopen(req, timeout=8) as response:
-            if response.status == 200:
-                content = response.read().decode('utf-8')
-                data = json.loads(content)
-                remote_ver = data.get("version", "0.0.0")
-                if parse_version(remote_ver) > parse_version(APP_VERSION):
-                    return data
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return None
-        raise
+    for url in (CHECK_UPDATE_URL, FALLBACK_UPDATE_URL):
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": f"YouTubeDownloader/{APP_VERSION} (Portable; Windows)"}
+            )
+            with urllib.request.urlopen(req, timeout=8) as response:
+                if response.status == 200:
+                    content = response.read().decode('utf-8')
+                    data = json.loads(content)
+                    remote_ver = data.get("version", "0.0.0")
+                    if parse_version(remote_ver) > parse_version(APP_VERSION):
+                        return data
+                    return None
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                continue
+        except Exception:
+            continue
     return None
 
 
@@ -141,6 +145,7 @@ class AppUpdateDialog(wx.Dialog):
         self.v_nueva = update_info.get("version", "Desconocida")
         self.fecha = update_info.get("date", "")
         self.download_url = update_info.get("url", "")
+        self.fallback_download_url = update_info.get("fallback_url", "")
         self._is_downloading = False
 
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -235,45 +240,58 @@ class AppUpdateDialog(wx.Dialog):
     def _download_worker(self):
         fd, temp_zip = tempfile.mkstemp(prefix="yt_download_", suffix=".zip")
         os.close(fd)
-        try:
-            req = urllib.request.Request(
-                self.download_url,
-                headers={"User-Agent": f"YouTubeDownloader/{APP_VERSION} (Portable Updater)"}
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp, open(temp_zip, 'wb') as out_f:
-                total_size = int(resp.headers.get('Content-Length', 0))
-                downloaded = 0
-                block_size = 65536
-                last_reported_pct = -1
+        urls_to_try = [u for u in [self.download_url, self.fallback_download_url] if u]
+        last_error = None
 
-                while True:
-                    if not self._is_downloading:
-                        out_f.close()
-                        try:
-                            os.remove(temp_zip)
-                        except Exception:
-                            pass
-                        return
-
-                    chunk = resp.read(block_size)
-                    if not chunk:
-                        break
-                    out_f.write(chunk)
-                    downloaded += len(chunk)
-
-                    if total_size > 0:
-                        pct = int((downloaded / total_size) * 100)
-                        if pct != last_reported_pct:
-                            last_reported_pct = pct
-                            wx.CallAfter(self._update_progress, pct, downloaded, total_size)
-
-            wx.CallAfter(self._on_download_finished, temp_zip)
-        except Exception as e:
+        for download_url in urls_to_try:
             try:
-                os.remove(temp_zip)
-            except FileNotFoundError:
-                pass
-            wx.CallAfter(self._on_download_error, str(e))
+                req = urllib.request.Request(
+                    download_url,
+                    headers={"User-Agent": f"YouTubeDownloader/{APP_VERSION} (Portable Updater)"}
+                )
+                with urllib.request.urlopen(req, timeout=30) as resp, open(temp_zip, 'wb') as out_f:
+                    total_size = int(resp.headers.get('Content-Length', 0))
+                    downloaded = 0
+                    block_size = 65536
+                    last_reported_pct = -1
+
+                    while True:
+                        if not self._is_downloading:
+                            out_f.close()
+                            try:
+                                os.remove(temp_zip)
+                            except Exception:
+                                pass
+                            return
+
+                        chunk = resp.read(block_size)
+                        if not chunk:
+                            break
+                        out_f.write(chunk)
+                        downloaded += len(chunk)
+
+                        if total_size > 0:
+                            pct = int((downloaded / total_size) * 100)
+                            if pct != last_reported_pct:
+                                last_reported_pct = pct
+                                wx.CallAfter(self._update_progress, pct, downloaded, total_size)
+
+                wx.CallAfter(self._on_download_finished, temp_zip)
+                return
+            except Exception as e:
+                last_error = e
+                # Si falló la primera URL, limpia el archivo parcial antes de intentar el fallback
+                try:
+                    with open(temp_zip, 'wb') as out_f:
+                        pass
+                except Exception:
+                    pass
+
+        try:
+            os.remove(temp_zip)
+        except FileNotFoundError:
+            pass
+        wx.CallAfter(self._on_download_error, str(last_error) if last_error else "Error de descarga desconocido")
 
     def _update_progress(self, percent, downloaded, total):
         self.gauge.SetValue(percent)
@@ -357,7 +375,7 @@ def manual_check_for_updates(parent_window):
     Comprobación interactiva lanzada por el usuario desde el menú Ayuda.
     Muestra información clara tanto si hay actualización como si ya está al día.
     """
-    accessibility.speak("Comprobando actualizaciones de la aplicación en buscaapps.com...")
+    accessibility.speak("Comprobando actualizaciones de la aplicación...")
 
     def _worker():
         try:

@@ -1,8 +1,20 @@
 ========================================================================
-DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.5.9)
-Fecha: 20 de Octubre de 2026
+DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.6.0)
+Fecha: 27 de Octubre de 2026
 ========================================================================
 
+NOVEDADES EN LA VERSIÓN 1.6.0:
+
+1. Transición del Sistema de Actualizaciones Automáticas a GitHub:
+   - A partir de esta versión, la aplicación consultará el repositorio oficial en GitHub (joseonce/youtube-downloader) para la detección de nuevas actualizaciones.
+   - Las futuras versiones y paquetes portables se descargarán directamente desde GitHub Releases.
+   - Se mantiene un canal de respaldo redundante en buscaapps.com para máxima fiabilidad y disponibilidad en caso de incidencias de red.
+
+2. Descarga Redundante y Resiliente en el Actualizador:
+   - El descargador de actualizaciones portable ahora soporta múltiples servidores de descarga con conmutación por error automática (failover).
+   - Si la descarga falla por interrupciones de red o bloqueos en un servidor, intenta automáticamente el servidor de respaldo sin intervención del usuario.
+
+========================================================================
 NOVEDADES EN LA VERSIÓN 1.5.9:
 
 1. Tecla Enter en la Lista para Reproducir en lugar de Descargar:

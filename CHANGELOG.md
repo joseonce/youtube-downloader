@@ -4,6 +4,18 @@ Todas las novedades, mejoras y correcciones notables de este proyecto quedan doc
 
 ---
 
+## [1.6.0] - 2026-10-27
+
+### Añadido
+- **Transición del sistema de actualizaciones a GitHub Releases**:
+  - El sistema de comprobación de versiones en segundo plano y manual consulta el repositorio oficial en GitHub (`joseonce/youtube-downloader`) como servidor principal.
+  - Para futuras versiones, las actualizaciones y paquetes ZIP portables se descargarán directamente desde GitHub Releases.
+  - Se mantiene una arquitectura de respaldo redundante hacia `buscaapps.com` para garantizar disponibilidad continua si ocurren cortes o incidencias de red externas.
+- **Descarga con redundancia y conmutación automática de servidores**:
+  - Diálogo de actualización mejorado con soporte para servidores alternativos: si la descarga en un servidor falla, el actualizador conmuta de forma transparente al servidor de respaldo.
+
+---
+
 ## [1.5.9] - 2026-10-20
 
 ### Añadido

@@ -1,9 +1,12 @@
 {
-  "version": "1.5.9",
+  "version": "1.6.0",
   "name": "Descargador de YouTube",
-  "date": "2026-10-20",
+  "date": "2026-10-27",
   "url": "https://buscaapps.com/youtube/YouTubeDownloader.zip",
+  "fallback_url": "https://github.com/joseonce/youtube-downloader/releases/latest/download/YouTubeDownloader.zip",
   "changelog": [
+    "v1.6.0: Transición del sistema de actualizaciones hacia GitHub: la aplicación consultará el repositorio oficial en GitHub para futuras versiones, manteniendo redundancia con buscaapps.",
+    "v1.6.0: Soporte de descarga redundante con servidor de respaldo automático para garantizar la obtención fiable de paquetes de actualización.",
     "v1.5.9: Al pulsar la tecla Enter en la lista de resultados se reproduce el elemento enfocado (o se explora playlist/canal) en lugar de iniciar la descarga.",
     "v1.5.9: Eliminación por completo del menú Plataformas: soporte unificado y transparente para descargar enlaces pegados de cualquiera de las más de 2.000 plataformas soportadas por yt-dlp.",
     "v1.5.9: Mejoras internas en el ciclo de descarga, finalización de transferencias y sincronización del estado de la interfaz.",
