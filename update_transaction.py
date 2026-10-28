@@ -75,12 +75,18 @@ try {
             $soundPs.Runspace = $soundRs
             [void]$soundPs.AddScript({
                 param($path)
-                if (Test-Path -LiteralPath $path) {
-                    $player = New-Object System.Media.SoundPlayer $path
-                    while ($true) {
-                        try { $player.PlaySync() } catch {}
-                        [System.Threading.Thread]::Sleep(1800)
-                    }
+                Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class WavPlay {
+    [DllImport("winmm.dll", CharSet = CharSet.Unicode)]
+    public static extern bool PlaySound(string sound, IntPtr hmod, uint flags);
+}
+"@
+                # SND_FILENAME=0x20000, SND_SYNC=0x0001
+                while ($true) {
+                    try { [WavPlay]::PlaySound($path, [IntPtr]::Zero, 0x20001) } catch {}
+                    [System.Threading.Thread]::Sleep(500)
                 }
             }).AddArgument($c.sound)
             [void]$soundPs.BeginInvoke()

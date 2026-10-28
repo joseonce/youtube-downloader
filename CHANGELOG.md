@@ -4,6 +4,11 @@ Todas las novedades, mejoras y correcciones notables de este proyecto quedan doc
 
 ---
 
+## [1.6.2] - 2026-10-28
+### Fixed
+- Sonido de espera durante la actualización ahora usa Win32 `PlaySound` (winmm.dll) en lugar de `System.Media.SoundPlayer`, garantizando reproducción en sesiones ocultas sin ventana visible.
+- Corrección del bucle de versión tras actualización: se asegura la integridad del EXE instalado.
+
 ## [1.6.1] - 2026-10-28
 
 ### Añadido

@@ -1,10 +1,12 @@
 {
-  "version": "1.6.1",
+  "version": "1.6.2",
   "name": "Descargador de YouTube",
   "date": "2026-10-28",
   "url": "https://buscaapps.com/youtube/YouTubeDownloader.zip",
   "fallback_url": "https://github.com/joseonce/youtube-downloader/releases/latest/download/YouTubeDownloader.zip",
   "changelog": [
+    "v1.6.2: Corrección del bucle de versión tras actualización: el instalador ahora verifica la versión instalada antes de ofrecer de nuevo la actualización.",
+    "v1.6.2: Sonido de espera durante actualización ahora usa la API Win32 (winmm.dll) para funcionar en sesiones ocultas sin ventana visible.",
     "v1.6.1: Navegación jerárquica escalonada completa con Escape: retorno ordenado nivel a nivel pasando por 'Mis listas de favoritos' antes de limpiar los resultados.",
     "v1.6.1: Optimización de favoritos: eliminación de la lista fija residual 'Principal' para trabajar limpiamente con 'Todas las listas' y las listas temáticas del usuario.",
     "v1.6.1: Señalización sonora continua en actualización: reproducción periódica del sonido de espera durante la descompresión, verificación y reinicio del programa.",

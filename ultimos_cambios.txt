@@ -1,4 +1,22 @@
 ========================================================================
+DESCARGADOR DE YOUTUBE - ULTIMOS CAMBIOS Y NOVEDADES (v1.6.2)
+Fecha: 28 de Octubre de 2026
+========================================================================
+
+NOVEDADES EN LA VERSION 1.6.2:
+
+1. Sonido de Espera durante la Actualizacion (Win32 PlaySound):
+   - El sonido de espera durante la actualizacion ahora usa la API Win32
+     nativa (winmm.dll PlaySound) en lugar de System.Media.SoundPlayer.
+   - Funciona correctamente en sesiones ocultas sin ventana visible,
+     lo que garantiza que el usuario oiga el sonido mientras el programa
+     se descomprime y se reinicia tras la actualizacion.
+
+2. Correccion del Bucle de Version:
+   - Tras instalar la actualizacion, el programa ya no vuelve a ofrecer
+     la misma version como nueva actualizacion disponible.
+
+========================================================================
 DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.6.1)
 Fecha: 28 de Octubre de 2026
 ========================================================================

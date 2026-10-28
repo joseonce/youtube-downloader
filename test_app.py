@@ -915,7 +915,7 @@ def test_updater_module():
     print("\n[8/8] Probando módulo de actualización automática (updater.py)...")
     import json
     import updater
-    assert updater.APP_VERSION == "1.6.1"
+    assert updater.APP_VERSION == "1.6.2"
     assert updater.parse_version("1.3.0") == (1, 3, 0)
     assert updater.parse_version("v1.3.1") == (1, 3, 1)
     assert updater.parse_version("v1.4.0") == (1, 4, 0)
@@ -968,7 +968,7 @@ def test_updater_module():
     assert os.path.exists(local_v_json), "El archivo version.json debe existir"
     with open(local_v_json, "r", encoding="utf-8") as f:
         data = json.load(f)
-        assert data["version"] == "1.6.1", "version.json debe tener la versión 1.6.0"
+        assert data["version"] == "1.6.2", "version.json debe tener la versión 1.6.0"
         assert "url" in data, "version.json debe contener el campo url"
         assert "changelog" in data, "version.json debe contener el campo changelog"
 

@@ -18,7 +18,7 @@ from update_transaction import UPDATE_SCRIPT
 import wx
 import accessibility
 
-APP_VERSION = "1.6.1"
+APP_VERSION = "1.6.2"
 APP_NAME = "Descargador de YouTube"
 CHECK_UPDATE_URL = "https://raw.githubusercontent.com/joseonce/youtube-downloader/main/version.json"
 FALLBACK_UPDATE_URL = "https://buscaapps.com/youtube/version.json"
