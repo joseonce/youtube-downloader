@@ -32,7 +32,7 @@ class MainListEventsMixin:
             r = self.resultados[idx]
             is_sel = r.get('selected', False)
             estado_tag = "Marcado - " if is_sel else ""
-            is_fav = getattr(self, 'is_showing_favorites', False)
+            is_fav = getattr(self, 'is_showing_favorites', False) and not getattr(self, 'is_showing_fav_lists', False)
             if is_fav:
                 _, tag, _ = self._get_item_type_and_image(r)
                 tipo_str = f"{tag} "
@@ -70,7 +70,7 @@ class MainListEventsMixin:
     def _actualizar_item_fila(self, idx):
         if 0 <= idx < len(self.resultados) and 0 <= idx < self.lista_resultados.GetItemCount():
             r = self.resultados[idx]
-            is_fav = getattr(self, 'is_showing_favorites', False)
+            is_fav = getattr(self, 'is_showing_favorites', False) and not getattr(self, 'is_showing_fav_lists', False)
             titulo_text, img_idx = self._get_item_display_title_and_image(r, is_fav_view=is_fav)
             self.lista_resultados.SetItem(idx, 0, titulo_text)
             self.lista_resultados.SetItemImage(idx, img_idx)
@@ -251,7 +251,7 @@ class MainListEventsMixin:
         r['selected'] = not r.get('selected', False)
         self._actualizar_item_fila(idx)
         estado_str = "Marcado" if r['selected'] else "Desmarcado"
-        is_fav = getattr(self, 'is_showing_favorites', False)
+        is_fav = getattr(self, 'is_showing_favorites', False) and not getattr(self, 'is_showing_fav_lists', False)
         if is_fav:
             _, tag, _ = self._get_item_type_and_image(r)
             accessibility.speak(f"{estado_str}: {tag} {r['title']}")

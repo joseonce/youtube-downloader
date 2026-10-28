@@ -64,25 +64,20 @@ class MainFavoritesMixin:
         self.current_channel_title = ""
 
         nombres = _get_fav_func('obtener_nombres_listas_favoritos')()
-        nombre_elegido = None
-        
         if len(nombres) > 1:
-            dlg = ViewFavoritesChoiceDialog(self, action_label="Ver")
-            if dlg.ShowModal() == wx.ID_OK:
-                nombre_elegido = dlg.selected_list
-            dlg.Destroy()
-            if not nombre_elegido:
-                return
-        
+            self.mostrar_listas_favoritos()
+            return
+
+        nombre_elegido = nombres[0] if nombres else "Principal"
         favs = _get_fav_func('obtener_favoritos')(nombre_lista=nombre_elegido)
         if not favs:
-            msg_vacia = f"No hay elementos en la lista de favoritos '{nombre_elegido}'." if nombre_elegido else "Aún no tienes elementos en tu lista de favoritos.\n\nPuedes añadir cualquier vídeo, canal o playlist pulsando Ctrl+B o desde el menú Edición."
+            msg_vacia = "Aún no tienes elementos en tu lista de favoritos.\n\nPuedes añadir cualquier vídeo, canal o playlist pulsando Ctrl+B o desde el menú Edición."
             wx.MessageBox(msg_vacia, "Lista de Favoritos vacía", wx.OK | wx.ICON_INFORMATION, self)
             return
 
-
+        self.is_showing_fav_lists = False
         self.is_showing_favorites = True
-        self.current_fav_name = nombre_elegido or "Principal"
+        self.current_fav_name = nombre_elegido
         self.current_playlist_title = self.current_fav_name
         self.resultados = []
         for idx, f in enumerate(favs, 1):
@@ -132,6 +127,17 @@ class MainFavoritesMixin:
 
     def mostrar_listas_favoritos(self):
         """Muestra en la tabla de resultados las listas de favoritos disponibles como nivel superior de la jerarquía."""
+        if hasattr(self, 'navigation_stack'):
+            self.navigation_stack.clear()
+        self._pending_nav_state = None
+        if hasattr(self, 'btn_siguientes'):
+            self.btn_siguientes.Enable(False)
+        if hasattr(self, 'item_siguientes'):
+            self.item_siguientes.Enable(False)
+        self.last_search_query = ""
+        self.last_target_url = ""
+        self.current_channel_title = ""
+
         favs_dict = cargar_favoritos()
         nombres = obtener_nombres_listas_favoritos()
 
@@ -165,7 +171,7 @@ class MainFavoritesMixin:
         for idx, n in enumerate(nombres, 2):
             cant = len(favs_dict.get(n, []))
             cant_str = f"{cant} elementos" if cant != 1 else "1 elemento"
-            desc_canal = "Lista principal de favoritos" if n == 'Principal' else "Lista temática de favoritos"
+            desc_canal = "Lista principal de favoritos" if n == 'Principal' else f"Lista temática '{n}'"
             self.resultados.append({
                 'index': idx,
                 'id': f"fav_list_{n}",
@@ -208,16 +214,16 @@ class MainFavoritesMixin:
 
     def mostrar_favoritos_de_lista(self, nombre_elegido="Principal", push_state=True):
         """Carga el contenido de una lista de favoritos específica preservando la jerarquía de navegación."""
-        if push_state and (getattr(self, 'is_showing_fav_lists', False) or (hasattr(self, 'resultados') and self.resultados)):
-            if not hasattr(self, 'navigation_stack'):
-                self.navigation_stack = []
-            self.navigation_stack.append(self._capturar_estado_navegacion())
-
         favs = obtener_favoritos(nombre_lista=nombre_elegido)
         if not favs:
             msg_vacia = f"No hay elementos en la lista de favoritos '{nombre_elegido}'." if nombre_elegido != "Todas las listas" else "Aún no tienes elementos en tu lista de favoritos.\n\nPuedes añadir cualquier vídeo, canal o playlist pulsando Ctrl+B o desde el menú Edición."
             wx.MessageBox(msg_vacia, "Lista de Favoritos vacía", wx.OK | wx.ICON_INFORMATION, self)
             return
+
+        if push_state and (getattr(self, 'is_showing_fav_lists', False) or (hasattr(self, 'resultados') and self.resultados)):
+            if not hasattr(self, 'navigation_stack'):
+                self.navigation_stack = []
+            self.navigation_stack.append(self._capturar_estado_navegacion())
 
         self.is_showing_fav_lists = False
         self.is_showing_favorites = True
@@ -257,6 +263,18 @@ class MainFavoritesMixin:
         total = len(self.resultados)
         tag_lista = f" ({nombre_elegido})" if (nombre_elegido and nombre_elegido != "Todas las listas") else ""
         self.current_fav_tag = tag_lista
+        item_str = "1 ítem" if total == 1 else f"{total} ítems"
+        msg = f"Mostrando {item_str}."
+        self.set_status(msg, field=0, announce=True)
+        self.lbl_results_info.SetLabel(f"&Mis Favoritos{tag_lista} ({item_str}):")
+        self.lbl_progreso_detalle.SetLabel("Pulsa Enter en un canal/lista para ver su contenido, o Ctrl+P para reproducir.")
+        self._actualizar_contador_seleccion()
+
+        self.lista_resultados.Select(0)
+        self.lista_resultados.Focus(0)
+        self.lista_resultados.SetFocus()
+        self.set_modo_boton_buscar('limpiar')
+
     def reproducir_favoritos(self, event=None):
         nombres = obtener_nombres_listas_favoritos()
         nombre_elegido = None
@@ -419,7 +437,7 @@ class MainFavoritesMixin:
                     eliminados += 1
 
             if es_fav_view:
-                self.mostrar_favoritos_de_lista(self.current_fav_name)
+                self.mostrar_favoritos_de_lista(self.current_fav_name, push_state=False)
             msg = f"Se eliminaron {eliminados} elementos de favoritos."
             self.set_status(msg, field=0, announce=True)
 
@@ -444,7 +462,8 @@ class MainFavoritesMixin:
             else:
                 dlg = SelectFavoriteListDialog(self, titulo)
                 if dlg.ShowModal() == wx.ID_OK:
-                    n_lista = dlg.selected_list_name or "Principal"
+                    nombres_disp = _get_fav_func('obtener_nombres_listas_favoritos')()
+                    n_lista = dlg.selected_list_name or (nombres_disp[0] if nombres_disp else "Principal")
                     agregar_favorito(video, nombre_lista=n_lista)
                     accessibility.speak(f"Añadido a favoritos en la lista '{n_lista}': {titulo}")
                     self.set_status(f"Añadido a favoritos ({n_lista}): {titulo}", field=0, announce=False)
@@ -532,7 +551,9 @@ class MainFavoritesMixin:
         if not es_fav_view and not any(es_favorito(v.get('url') or v.get('id', '')) for v in items):
             return
 
-        lista_destino = (lista_destino or 'Principal').strip()
+        nombres_disp = _get_fav_func('obtener_nombres_listas_favoritos')()
+        default_dest = nombres_disp[0] if nombres_disp else 'Principal'
+        lista_destino = (lista_destino or default_dest).strip()
 
         movidos = []
         ya_estaban = []

@@ -15,9 +15,8 @@ class SelectFavoriteListDialog(wx.Dialog):
     """Diálogo accesible para elegir en qué lista de favoritos guardar o crear una nueva."""
     def __init__(self, parent, video_title=""):
         super().__init__(parent, title="Guardar en Favoritos", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
-        self.selected_list_name = "Principal"
-        
         nombres = obtener_nombres_listas_favoritos()
+        self.selected_list_name = nombres[0] if nombres else "Principal"
         opciones = list(nombres) + ["[+] Crear nueva lista..."]
         
         sizer = wx.BoxSizer(wx.VERTICAL)

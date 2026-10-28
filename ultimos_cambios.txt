@@ -1,6 +1,24 @@
 ========================================================================
-DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.6.0)
-Fecha: 27 de Octubre de 2026
+DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.6.1)
+Fecha: 28 de Octubre de 2026
+========================================================================
+
+NOVEDADES EN LA VERSIÓN 1.6.1:
+
+1. Navegación Jerárquica Escalonada Completa con la Tecla Escape:
+   - Al explorar favoritos temáticos, canales y listas de reproducción anidadas, la tecla Escape retrocede ordenadamente paso a paso por toda la ruta jerárquica:
+     vídeos de la lista -> listas del canal -> lista de favoritos -> Mis listas de favoritos -> limpiar resultados.
+   - Corrige el salto involuntario de nivel que vaciaba los resultados prematuramente sin pasar por 'Mis listas de favoritos'.
+
+2. Optimización y Depuración de Listas de Favoritos (Sin Lista 'Principal' Forzada):
+   - Supresión automática de la lista residual 'Principal' cuando el usuario crea y utiliza sus propias listas temáticas o cuando está vacía.
+   - En la vista de favoritos ahora se muestran limpiamente 'Todas las listas' y las listas temáticas reales creadas por el usuario, sin duplicidades ni listas vacías artificiales.
+   - Libertad total para eliminar cualquier lista temática desde las opciones de gestión.
+
+3. Sonido Continuo de Espera Durante la Actualización y Descompresión:
+   - Durante el proceso de cierre, descompresión del paquete, verificación y relanzamiento de la nueva versión, el instalador reproduce periódicamente el tono suave y armónico de espera en segundo plano.
+   - Proporciona una señalización auditiva clara y tranquilizadora que confirma que el proceso de actualización sigue en curso y activo hasta que se abre la nueva versión.
+
 ========================================================================
 
 NOVEDADES EN LA VERSIÓN 1.6.0:

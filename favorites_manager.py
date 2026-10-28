@@ -125,13 +125,23 @@ def cargar_favoritos():
         except Exception:
             favs[nombre_lista] = []
 
-    if 'Principal' not in favs:
+    # Solo crear 'Principal.json' si no existe absolutamente ninguna lista
+    if not favs:
         favs['Principal'] = []
         try:
             with open(os.path.join(fav_dir, 'Principal.json'), 'w', encoding='utf-8') as f:
                 json.dump([], f, indent=2, ensure_ascii=False)
         except Exception:
             pass
+    elif 'Principal' in favs and len(favs['Principal']) == 0 and len(favs) > 1:
+        # Si 'Principal' está vacía y existen otras listas temáticas, retirar el archivo residual
+        del favs['Principal']
+        p_path = os.path.join(fav_dir, 'Principal.json')
+        if os.path.isfile(p_path):
+            try:
+                os.remove(p_path)
+            except Exception:
+                pass
 
     return favs
 
@@ -182,8 +192,6 @@ def guardar_lista_favoritos(nombre_lista: str, videos: list):
 
 def eliminar_lista_favoritos(nombre_lista: str):
     """Elimina el archivo .json de una lista de favoritos específica del disco."""
-    if nombre_lista == 'Principal':
-        return guardar_lista_favoritos('Principal', [])
     fpath = get_favoritos_file_path(nombre_lista)
     if os.path.isfile(fpath):
         try:
@@ -200,11 +208,11 @@ def obtener_listas_favoritos():
 
 
 def obtener_nombres_listas_favoritos():
-    """Retorna la lista de nombres de las listas de favoritos disponibles con 'Principal' al inicio."""
+    """Retorna la lista de nombres de las listas de favoritos disponibles ordenadas alfabéticamente."""
     favs_dict = cargar_favoritos()
-    otros = [k for k in favs_dict.keys() if k != 'Principal']
-    otros.sort(key=lambda s: s.lower())
-    return ['Principal'] + otros
+    nombres = [k for k in favs_dict.keys() if k != 'Principal' or len(favs_dict[k]) > 0 or len(favs_dict) == 1]
+    nombres.sort(key=lambda s: s.lower())
+    return nombres
 
 
 def obtener_favoritos(nombre_lista=None):
@@ -213,7 +221,7 @@ def obtener_favoritos(nombre_lista=None):
     Si nombre_lista es None o 'Todas', retorna todos los vídeos sin duplicados.
     """
     favs_dict = cargar_favoritos()
-    if nombre_lista and nombre_lista != 'Todas':
+    if nombre_lista and nombre_lista not in ('Todas', 'Todas las listas'):
         return favs_dict.get(nombre_lista, [])
 
     todos = []

@@ -53,6 +53,7 @@ class MainSearchMixin:
         self.lista_resultados.DeleteAllItems()
         self.resultados = []
         self.is_showing_favorites = False
+        self.is_showing_fav_lists = False
         self.last_search_query = ""
         self.last_target_url = ""
         self.current_playlist_title = ""
@@ -137,6 +138,7 @@ class MainSearchMixin:
     def _restaurar_estado_navegacion(self, estado):
         """Restaura la vista y controles de un nivel de navegación previo."""
         self.is_showing_favorites = estado.get('is_showing_favorites', False)
+        self.is_showing_fav_lists = estado.get('is_showing_fav_lists', False)
         self.current_fav_name = estado.get('current_fav_name', 'Principal')
         self.current_fav_tag = estado.get('current_fav_tag', '')
         self.current_playlist_title = estado.get('current_playlist_title', '')
@@ -151,7 +153,7 @@ class MainSearchMixin:
         self.col_activa_resultados = 0
 
         self.lista_resultados.DeleteAllItems()
-        is_fav = self.is_showing_favorites
+        is_fav = self.is_showing_favorites and not self.is_showing_fav_lists
         for idx, r in enumerate(self.resultados):
             titulo_text, img_idx = self._get_item_display_title_and_image(r, is_fav_view=is_fav)
             item_row = self.lista_resultados.InsertItem(self.lista_resultados.GetItemCount(), titulo_text, img_idx)
@@ -201,6 +203,16 @@ class MainSearchMixin:
         if hasattr(self, 'navigation_stack') and self.navigation_stack:
             estado = self.navigation_stack.pop()
             self._restaurar_estado_navegacion(estado)
+        elif (getattr(self, 'is_showing_favorites', False) and 
+              not getattr(self, 'is_showing_fav_lists', False)):
+            try:
+                from favorites_manager import obtener_nombres_listas_favoritos
+                if len(obtener_nombres_listas_favoritos()) > 1:
+                    self.mostrar_listas_favoritos()
+                    return
+            except Exception:
+                pass
+            self.limpiar_resultados(event)
         else:
             self.limpiar_resultados(event)
 
@@ -716,6 +728,7 @@ class MainSearchMixin:
             self._pending_nav_state = None
 
         self.is_showing_favorites = False
+        self.is_showing_fav_lists = False
         self.resultados = resultados
         self.lista_resultados.DeleteAllItems()
 

@@ -18,7 +18,7 @@ from update_transaction import UPDATE_SCRIPT
 import wx
 import accessibility
 
-APP_VERSION = "1.6.0"
+APP_VERSION = "1.6.1"
 APP_NAME = "Descargador de YouTube"
 CHECK_UPDATE_URL = "https://raw.githubusercontent.com/joseonce/youtube-downloader/main/version.json"
 FALLBACK_UPDATE_URL = "https://buscaapps.com/youtube/version.json"
@@ -79,10 +79,27 @@ def launch_portable_updater(zip_path):
     try:
         package = os.path.join(work, "package.zip")
         shutil.move(zip_path, package)
+
+        work_sound = None
+        base_sound = os.path.join(base_dir, "resources", "sounds", "espera.wav")
+        if not os.path.isfile(base_sound):
+            try:
+                import sound_manager
+                sound_manager.ensure_sound_files()
+            except Exception:
+                pass
+        if os.path.isfile(base_sound):
+            try:
+                work_sound = os.path.join(work, "espera.wav")
+                shutil.copy2(base_sound, work_sound)
+            except Exception:
+                work_sound = None
+
         settings = {
             "target": base_dir,
             "work": work,
             "zip": package,
+            "sound": work_sound,
             "token": uuid.uuid4().hex,
             "pid": os.getpid(),
             "entry": os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "app.py",

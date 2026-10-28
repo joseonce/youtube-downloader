@@ -184,6 +184,7 @@ class MainFrame(
         self.next_start_index = 1
         self.is_searching = False
         self.is_showing_favorites = False
+        self.is_showing_fav_lists = False
         self.modo_boton_buscar = 'buscar'
         self.navigation_stack = []
         self._pending_nav_state = None

@@ -65,6 +65,27 @@ function Open-App([bool]$CheckReady) {
     return $p
 }
 try {
+    $soundPs = $null
+    $soundRs = $null
+    if ($c.PSObject.Properties['sound'] -and $c.sound -and (Test-Path -LiteralPath $c.sound)) {
+        try {
+            $soundRs = [runspacefactory]::CreateRunspace()
+            $soundRs.Open()
+            $soundPs = [powershell]::Create()
+            $soundPs.Runspace = $soundRs
+            [void]$soundPs.AddScript({
+                param($path)
+                if (Test-Path -LiteralPath $path) {
+                    $player = New-Object System.Media.SoundPlayer $path
+                    while ($true) {
+                        try { $player.PlaySync() } catch {}
+                        [System.Threading.Thread]::Sleep(1800)
+                    }
+                }
+            }).AddArgument($c.sound)
+            [void]$soundPs.BeginInvoke()
+        } catch {}
+    }
     # Esperar al cierre sin matar otras instalaciones por nombre de ejecutable.
     $old = Get-Process -Id $c.pid -ErrorAction SilentlyContinue
     if ($old -and -not $old.WaitForExit(30000)) { throw 'La aplicacion anterior sigue abierta.' }
@@ -142,6 +163,12 @@ try {
     $shell = New-Object -ComObject WScript.Shell
     $shell.Popup("La actualizacion no se completo.`n$problem", 10, 'Actualizacion', 48) | Out-Null
 } finally {
+    if ($soundPs) {
+        try { $soundPs.Stop(); $soundPs.Dispose() } catch {}
+    }
+    if ($soundRs) {
+        try { $soundRs.Close(); $soundRs.Dispose() } catch {}
+    }
     $cleanupErrors = @()
     foreach ($path in @($stage, $failed)) {
         try { Remove-Owned $path } catch { $cleanupErrors += $path }

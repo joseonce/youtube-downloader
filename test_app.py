@@ -915,7 +915,7 @@ def test_updater_module():
     print("\n[8/8] Probando módulo de actualización automática (updater.py)...")
     import json
     import updater
-    assert updater.APP_VERSION == "1.6.0"
+    assert updater.APP_VERSION == "1.6.1"
     assert updater.parse_version("1.3.0") == (1, 3, 0)
     assert updater.parse_version("v1.3.1") == (1, 3, 1)
     assert updater.parse_version("v1.4.0") == (1, 4, 0)
@@ -968,7 +968,7 @@ def test_updater_module():
     assert os.path.exists(local_v_json), "El archivo version.json debe existir"
     with open(local_v_json, "r", encoding="utf-8") as f:
         data = json.load(f)
-        assert data["version"] == "1.6.0", "version.json debe tener la versión 1.6.0"
+        assert data["version"] == "1.6.1", "version.json debe tener la versión 1.6.0"
         assert "url" in data, "version.json debe contener el campo url"
         assert "changelog" in data, "version.json debe contener el campo changelog"
 
@@ -1068,6 +1068,10 @@ def test_navegacion_jerarquica_escape():
     print("\n[Extra] Probando navegación jerárquica nivel a nivel con la tecla Escape (vídeos -> lista -> canal -> favoritos)...")
     import wx
     import ui
+    import favorites_manager
+
+    orig_nombres = favorites_manager.obtener_nombres_listas_favoritos
+    favorites_manager.obtener_nombres_listas_favoritos = lambda: ['Principal']
 
     app = wx.App.Get() or wx.App(False)
     frame = ui.MainFrame()
@@ -1130,8 +1134,127 @@ def test_navegacion_jerarquica_escape():
     assert frame.lista_resultados.GetItemCount() == 0
     assert frame.is_showing_favorites is False
 
+    favorites_manager.obtener_nombres_listas_favoritos = orig_nombres
     frame.Destroy()
     print("  -> Navegación jerárquica y retroceso escalonado con Escape validados satisfactoriamente.")
+
+
+def test_navegacion_jerarquica_mis_listas_favoritos():
+    print("\n[Extra] Probando navegación jerárquica con Mis listas de favoritos (Escape)...")
+    import wx
+    import ui
+    import favorites_manager
+
+    app = wx.App.Get() or wx.App(False)
+    frame = ui.MainFrame()
+
+    orig_nombres = favorites_manager.obtener_nombres_listas_favoritos
+    orig_favs = favorites_manager.obtener_favoritos
+    orig_cargar = favorites_manager.cargar_favoritos
+
+    dummy_dict = {
+        'Principal': [
+            {'title': 'Video Principal', 'tipo_item': 'video', 'is_channel': False, 'is_playlist': False, 'url': 'https://youtube.com/watch?v=P1'}
+        ],
+        'Mi Lista': [
+            {'title': 'Canal en Mi Lista', 'tipo_item': 'channel', 'is_channel': True, 'is_playlist': False, 'url': 'https://youtube.com/@CanalTest'}
+        ]
+    }
+
+    import main_favorites_mixin
+    orig_mfm_nombres = main_favorites_mixin.obtener_nombres_listas_favoritos
+    orig_mfm_favs = main_favorites_mixin.obtener_favoritos
+    orig_mfm_cargar = main_favorites_mixin.cargar_favoritos
+
+    mock_nombres = lambda: ['Mi Lista', 'Principal']
+    mock_cargar = lambda: dummy_dict
+    mock_favs = lambda nombre_lista=None: (
+        (dummy_dict['Principal'] + dummy_dict['Mi Lista']) if not nombre_lista or nombre_lista in ('Todas', 'Todas las listas')
+        else dummy_dict.get(nombre_lista, [])
+    )
+
+    favorites_manager.obtener_nombres_listas_favoritos = mock_nombres
+    favorites_manager.cargar_favoritos = mock_cargar
+    favorites_manager.obtener_favoritos = mock_favs
+    main_favorites_mixin.obtener_nombres_listas_favoritos = mock_nombres
+    main_favorites_mixin.cargar_favoritos = mock_cargar
+    main_favorites_mixin.obtener_favoritos = mock_favs
+
+    try:
+        # 1. Al invocar mostrar_favoritos con múltiples listas, debe entrar a 'mostrar_listas_favoritos' (Nivel 0)
+        frame.mostrar_favoritos()
+        assert frame.is_showing_fav_lists is True, "Debe mostrar las listas de favoritos"
+        assert frame.is_showing_favorites is False
+        assert len(frame.resultados) == 3, "Debe incluir 'Todas las listas', 'Principal' y 'Mi Lista'"
+        titles = [r['title'] for r in frame.resultados]
+        assert 'Todas las listas' in titles
+        assert 'Mi Lista' in titles
+        assert 'Principal' in titles
+        assert len(frame.navigation_stack) == 0, "En el nivel superior la pila debe estar vacía"
+
+        # 2. Entrar en 'Mi Lista' (Nivel 1)
+        frame.mostrar_favoritos_de_lista('Mi Lista', push_state=True)
+        assert len(frame.navigation_stack) == 1, "Debe haber guardado el nivel de Mis listas de favoritos en la pila"
+        assert frame.navigation_stack[0]['is_showing_fav_lists'] is True
+        assert frame.is_showing_fav_lists is False
+        assert frame.is_showing_favorites is True
+        assert frame.current_fav_name == 'Mi Lista'
+        assert len(frame.resultados) == 1
+        assert frame.resultados[0]['title'] == 'Canal en Mi Lista'
+
+        # 3. Entrar al canal (Nivel 2)
+        frame._pending_nav_state = frame._capturar_estado_navegacion()
+        playlists_canal = [
+            {'title': 'Playlist del Canal', 'tipo_item': 'playlist', 'is_playlist': True, 'url': 'https://youtube.com/playlist?list=PL1', 'selected': False}
+        ]
+        frame._on_search_completed(playlists_canal, "Listas de reproducción del canal", False)
+        assert len(frame.navigation_stack) == 2, "Pila debe tener 2 niveles (Mis listas y Mi Lista)"
+        assert frame.is_showing_favorites is False
+
+        # 4. Entrar a la playlist (Nivel 3)
+        frame._pending_nav_state = frame._capturar_estado_navegacion()
+        videos_pl = [
+            {'title': 'Vídeo 1 de la Lista', 'tipo_item': 'video', 'url': 'https://youtube.com/watch?v=V1', 'selected': False}
+        ]
+        frame._on_search_completed(videos_pl, "Vídeos de la lista", False)
+        assert len(frame.navigation_stack) == 3, "Pila debe tener 3 niveles (Mis listas, Mi Lista y Canal)"
+        assert frame.resultados[0]['title'] == 'Vídeo 1 de la Lista'
+
+        # Ahora retrocedemos nivel a nivel con Escape:
+        # 1ª pulsación: sube al canal donde se encuentra la lista
+        frame.retroceder_nivel_o_limpiar()
+        assert len(frame.navigation_stack) == 2
+        assert frame.resultados[0]['title'] == 'Playlist del Canal'
+
+        # 2ª pulsación: sube a 'Mi Lista' donde se encuentra el canal
+        frame.retroceder_nivel_o_limpiar()
+        assert len(frame.navigation_stack) == 1
+        assert frame.is_showing_favorites is True
+        assert frame.current_fav_name == 'Mi Lista'
+        assert frame.resultados[0]['title'] == 'Canal en Mi Lista'
+
+        # 3ª pulsación: sube a 'Mis listas de favoritos'
+        frame.retroceder_nivel_o_limpiar()
+        assert len(frame.navigation_stack) == 0
+        assert frame.is_showing_fav_lists is True
+        assert frame.is_showing_favorites is False
+        assert len(frame.resultados) == 3
+
+        # 4ª pulsación: limpia resultados y vuelve al campo de búsqueda
+        frame.retroceder_nivel_o_limpiar()
+        assert len(frame.resultados) == 0
+        assert frame.is_showing_fav_lists is False
+        assert frame.is_showing_favorites is False
+
+        print("  -> Navegación con Mis listas de favoritos y retroceso paso a paso validado con éxito.")
+    finally:
+        favorites_manager.obtener_nombres_listas_favoritos = orig_nombres
+        favorites_manager.cargar_favoritos = orig_cargar
+        favorites_manager.obtener_favoritos = orig_favs
+        main_favorites_mixin.obtener_nombres_listas_favoritos = orig_mfm_nombres
+        main_favorites_mixin.cargar_favoritos = orig_mfm_cargar
+        main_favorites_mixin.obtener_favoritos = orig_mfm_favs
+        frame.Destroy()
 
 
 def test_sugerencia_subcarpeta_lista_o_canal():
@@ -2196,6 +2319,7 @@ if __name__ == "__main__":
     test_subcarpeta_solo_cuando_multiples_descargas()
     test_menu_contextual_descripcion()
     test_navegacion_jerarquica_escape()
+    test_navegacion_jerarquica_mis_listas_favoritos()
     test_sugerencia_subcarpeta_lista_o_canal()
     test_barra_progreso_no_alcanzable_por_tabulador()
     test_f8_porcentaje_y_sonido_descripcion()

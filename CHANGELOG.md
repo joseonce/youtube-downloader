@@ -4,6 +4,22 @@ Todas las novedades, mejoras y correcciones notables de este proyecto quedan doc
 
 ---
 
+## [1.6.1] - 2026-10-28
+
+### Añadido
+- **Navegación jerárquica escalonada completa con la tecla Escape**:
+  - Al explorar favoritos temáticos, canales y playlists anidadas, la tecla Escape retrocede ordenadamente paso a paso: vídeos -> listas del canal -> lista de favoritos -> 'Mis listas de favoritos' -> limpiar resultados.
+  - Se garantiza que nunca se salte el nivel de 'Mis listas de favoritos' al regresar de listas temáticas.
+- **Señalización sonora continua durante la actualización y descompresión**:
+  - Durante el proceso de relevo, descompresión, verificación e inicio de la nueva versión tras una actualización, el instalador reproduce periódicamente el tono suave y armónico de espera en segundo plano, informando al usuario y facilitando el seguimiento del proceso a personas que utilicen lectores de pantalla.
+
+### Cambiado
+- **Optimización y depuración de listas de favoritos**:
+  - Supresión de la lista automática 'Principal' cuando el usuario dispone de sus propias listas temáticas o cuando se encuentra vacía, evitando elementos redundantes junto a 'Todas las listas'.
+  - Las listas de favoritos se pueden eliminar o gestionar con total libertad sin listas residuales forzadas por el sistema.
+
+---
+
 ## [1.6.0] - 2026-10-27
 
 ### Añadido
