@@ -13,8 +13,9 @@ dist/
 test_zip*
 *.exe
 
-# Binarios pesados externos (ffmpeg, ffprobe, yt-dlp)
+# Binarios pesados externos (ffmpeg, ffprobe, yt-dlp, librerias nativas mpv)
 bin/
+resources/mpv/
 
 # Caché de Python
 __pycache__/
@@ -40,3 +41,7 @@ venv/
 .idea/
 Thumbs.db
 Desktop.ini
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+opencode.json

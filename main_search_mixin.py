@@ -9,6 +9,7 @@ import time
 import wx
 
 import accessibility
+import sound_manager
 from config_manager import cargar_configuracion, get_docs_dir
 from media_utils import identificar_tipo_url, formatear_visitas
 from downloader import YouTubeDownloader
@@ -152,6 +153,59 @@ class MainSearchMixin:
         self.next_start_index = estado.get('next_start_index', 1)
         self.col_activa_resultados = 0
 
+        if self.is_showing_fav_lists:
+            try:
+                from favorites_manager import cargar_favoritos, obtener_favoritos, obtener_nombres_listas_favoritos
+                favs_dict_act = cargar_favoritos()
+                todos_total_act = len(obtener_favoritos())
+                nombres = obtener_nombres_listas_favoritos()
+
+                self.resultados = []
+                self.resultados.append({
+                    'index': 1,
+                    'id': 'fav_list_all',
+                    'title': 'Todas las listas',
+                    'channel': 'Colección completa de favoritos',
+                    'duration': f"{todos_total_act} elementos" if todos_total_act != 1 else "1 elemento",
+                    'duration_seconds': 0,
+                    'views': '--',
+                    'url': '',
+                    'selected': False,
+                    'list_name': 'Todas las listas',
+                    'is_channel': False,
+                    'is_playlist': True,
+                    'is_fav_list': True,
+                    'tipo_item': 'fav_list',
+                    'type': 'fav_list'
+                })
+
+                for idx, n in enumerate(nombres, 2):
+                    cant = len(favs_dict_act.get(n, []))
+                    cant_str = f"{cant} elementos" if cant != 1 else "1 elemento"
+                    desc_canal = "Lista principal de favoritos" if n == 'Principal' else f"Lista temática '{n}'"
+                    self.resultados.append({
+                        'index': idx,
+                        'id': f"fav_list_{n}",
+                        'title': n,
+                        'channel': desc_canal,
+                        'duration': cant_str,
+                        'duration_seconds': 0,
+                        'views': '--',
+                        'url': '',
+                        'selected': False,
+                        'list_name': n,
+                        'is_channel': False,
+                        'is_playlist': True,
+                        'is_fav_list': True,
+                        'tipo_item': 'fav_list',
+                        'type': 'fav_list'
+                    })
+                total = len(self.resultados)
+                item_str = f"{total} listas"
+                estado['lbl_results_info'] = f"&Mis listas de favoritos ({item_str}):"
+            except Exception:
+                pass
+
         self.lista_resultados.DeleteAllItems()
         is_fav = self.is_showing_favorites and not self.is_showing_fav_lists
         for idx, r in enumerate(self.resultados):
@@ -270,20 +324,15 @@ class MainSearchMixin:
         self.btn_siguientes.Enable(False)
         if hasattr(self, 'item_siguientes'):
             self.item_siguientes.Enable(False)
-        self.txt_busqueda.Enable(False)
 
-        if search_type == 'channel' and engine == 'ytsearch':
-            msg_status = f"Buscando canales para '{query}'..."
-            msg_detalle = "Buscando canales en YouTube..."
-        elif search_type == 'playlist' and engine == 'ytsearch':
-            msg_status = f"Buscando listas de reproducción para '{query}'..."
-            msg_detalle = "Buscando listas de reproducción en YouTube..."
-        else:
-            msg_status = f"Buscando '{query}'..."
-            msg_detalle = "Consultando información en línea..."
-
-        self.set_status(msg_status, field=0, announce=True)
+        msg_status = f"Buscando {query}." if query else "Buscando."
+        accessibility.silence()
+        accessibility.speak(msg_status, interrupt=True)
+        if hasattr(self, 'status_bar') and self.status_bar:
+            self.status_bar.SetStatusText(msg_status, 0)
+        msg_detalle = "Consultando información en línea..."
         self.lbl_progreso_detalle.SetLabel(msg_detalle)
+        sound_manager.start_waiting_sound(interval=1.2)
 
         def _worker():
             try:
@@ -346,18 +395,15 @@ class MainSearchMixin:
         self.btn_siguientes.Enable(False)
         if hasattr(self, 'item_siguientes'):
             self.item_siguientes.Enable(False)
-        self.txt_busqueda.Enable(False)
 
-        msg_status = "Buscando..."
-        if search_type == 'channel' and engine == 'ytsearch':
-            msg_detalle = "Buscando canales en YouTube..."
-        elif search_type == 'playlist' and engine == 'ytsearch':
-            msg_detalle = "Buscando listas de reproducción en YouTube..."
-        else:
-            msg_detalle = "Consultando información en línea..."
-
-        self.set_status(msg_status, field=0, announce=True)
+        msg_status = f"Buscando {query}." if query else "Buscando."
+        accessibility.silence()
+        accessibility.speak(msg_status, interrupt=True)
+        if hasattr(self, 'status_bar') and self.status_bar:
+            self.status_bar.SetStatusText(msg_status, 0)
+        msg_detalle = "Consultando información en línea..."
         self.lbl_progreso_detalle.SetLabel(msg_detalle)
+        sound_manager.start_waiting_sound(interval=1.2)
 
         def _worker():
             try:
@@ -386,18 +432,32 @@ class MainSearchMixin:
         self.btn_siguientes.Enable(False)
         if hasattr(self, 'item_siguientes'):
             self.item_siguientes.Enable(False)
-        self.txt_busqueda.Enable(False)
-        self.set_status("Buscando...", field=0, announce=True)
+        accessibility.silence()
+        accessibility.speak("Buscando.", interrupt=True)
+        if hasattr(self, 'status_bar') and self.status_bar:
+            self.status_bar.SetStatusText("Buscando...", 0)
         lbl_canal = f" del canal {self.current_channel_title}" if self.current_channel_title else ""
         self.lbl_progreso_detalle.SetLabel(f"Listando hasta {max_results} vídeos{lbl_canal}...")
+        sound_manager.start_waiting_sound(interval=1.2)
 
         def _worker():
             try:
-                resultados = self.downloader.buscar_canal_videos(channel_url, max_results=max_results, start_index=1)
+                clean_title = self.current_channel_title or ""
+                for tag in (' [Canal]', '[Canal] ', ' [Lista]', '[Lista] '):
+                    clean_title = clean_title.replace(tag, '')
+                clean_title = clean_title.strip()
+                self.current_channel_title = clean_title
+
+                resultados = self.downloader.buscar_canal_videos(channel_url, max_results=max_results, start_index=1, channel_title=self.current_channel_title)
                 detected = getattr(self.downloader, 'last_container_title', '')
                 if not self.current_channel_title and detected:
-                    self.current_channel_title = detected
+                    clean_detected = re.sub(r'\s*-\s*(?:Videos|Uploads|Vídeos|Pistas|Playlists|Listas)$', '', detected, flags=re.IGNORECASE).strip()
+                    self.current_channel_title = clean_detected or detected
                 ch_nombre = self.current_channel_title or channel_url
+                if self.current_channel_title:
+                    for r in resultados:
+                        if r.get('channel') in ('Desconocido', '', None):
+                            r['channel'] = self.current_channel_title
                 wx.CallAfter(self._on_search_completed, resultados, f"Vídeos del canal {ch_nombre}", False)
             except Exception as e:
                 wx.CallAfter(self._on_search_error, str(e))
@@ -422,10 +482,13 @@ class MainSearchMixin:
         self.btn_siguientes.Enable(False)
         if hasattr(self, 'item_siguientes'):
             self.item_siguientes.Enable(False)
-        self.txt_busqueda.Enable(False)
-        self.set_status("Buscando...", field=0, announce=True)
+        accessibility.silence()
+        accessibility.speak("Buscando.", interrupt=True)
+        if hasattr(self, 'status_bar') and self.status_bar:
+            self.status_bar.SetStatusText("Buscando...", 0)
         lbl_canal = f" del canal {self.current_channel_title}" if self.current_channel_title else ""
         self.lbl_progreso_detalle.SetLabel(f"Listando listas de reproducción{lbl_canal}...")
+        sound_manager.start_waiting_sound(interval=1.2)
 
         def _worker():
             try:
@@ -457,10 +520,13 @@ class MainSearchMixin:
         self.btn_siguientes.Enable(False)
         if hasattr(self, 'item_siguientes'):
             self.item_siguientes.Enable(False)
-        self.txt_busqueda.Enable(False)
-        self.set_status("Buscando...", field=0, announce=True)
+        accessibility.silence()
+        accessibility.speak("Buscando.", interrupt=True)
+        if hasattr(self, 'status_bar') and self.status_bar:
+            self.status_bar.SetStatusText("Buscando...", 0)
         lbl_pl = f" de {self.current_playlist_title}" if self.current_playlist_title else ""
         self.lbl_progreso_detalle.SetLabel(f"Cargando vídeos de la lista de reproducción{lbl_pl}...")
+        sound_manager.start_waiting_sound(interval=1.2)
 
         def _worker():
             try:
@@ -475,140 +541,13 @@ class MainSearchMixin:
 
         threading.Thread(target=_worker, daemon=True).start()
 
-    def _verificar_sesion_configurada(self):
-        """Verifica si el usuario tiene una sesión de cookies configurada o le ofrece abrir Opciones."""
-        cfg = cargar_configuracion()
-        src = cfg.get('cookie_source', 'none')
-        if src == 'none':
-            resp = wx.MessageBox(
-                "Para acceder a tu historial y listas privadas de YouTube necesitas configurar el acceso de sesión con tus cookies "
-                "(usando tu navegador Firefox/Brave o seleccionando un archivo cookies.txt).\n\n"
-                "¿Deseas abrir la ventana de Opciones ahora para configurarlo?",
-                "Sesión de YouTube no configurada",
-                wx.YES_NO | wx.ICON_QUESTION,
-                self
-            )
-            if resp == wx.YES:
-                self.on_abrir_opciones(None)
-                cfg = cargar_configuracion()
-                return cfg.get('cookie_source', 'none') != 'none'
-            return False
-        return True
-
-    def ejecutar_busqueda_historial(self):
-        """Carga el historial de reproducciones de YouTube del usuario."""
-        if not self.verificar_libreria_ytdlp():
-            return
-        if not self._verificar_sesion_configurada():
-            return
-        if self.is_searching:
-            return
-        if hasattr(self, 'navigation_stack'):
-            self.navigation_stack.clear()
-        self._pending_nav_state = None
-        max_results = int(self.config.get('max_results', 25))
-        self.is_searching = True
-        self.is_showing_favorites = False
-        self.last_search_query = "Historial"
-        self.last_search_kind = 'historial'
-        self.last_target_url = "https://www.youtube.com/feed/history"
-        self.next_start_index = 1
-
-        self.btn_buscar.Enable(False)
-        self.btn_siguientes.Enable(False)
-        if hasattr(self, 'item_siguientes'):
-            self.item_siguientes.Enable(False)
-        self.txt_busqueda.Enable(False)
-        self.set_status("Obteniendo tu historial de reproducciones de YouTube...", field=0, announce=True)
-        self.lbl_progreso_detalle.SetLabel("Cargando historial de reproducciones...")
-
-        def _worker():
-            try:
-                resultados = self.downloader.buscar_historial(max_results=max_results, start_index=1)
-                wx.CallAfter(self._on_search_completed, resultados, "Historial de YouTube", False)
-            except Exception as e:
-                wx.CallAfter(self._on_search_error, str(e))
-
-        threading.Thread(target=_worker, daemon=True).start()
-
-    def ejecutar_busqueda_ver_mas_tarde(self):
-        """Carga los vídeos de la lista 'Ver más tarde' del usuario."""
-        if not self.verificar_libreria_ytdlp():
-            return
-        if not self._verificar_sesion_configurada():
-            return
-        if self.is_searching:
-            return
-        if hasattr(self, 'navigation_stack'):
-            self.navigation_stack.clear()
-        self._pending_nav_state = None
-        max_results = int(self.config.get('max_results', 25))
-        self.is_searching = True
-        self.is_showing_favorites = False
-        self.last_search_query = "Ver más tarde"
-        self.last_search_kind = 'ver_mas_tarde'
-        self.last_target_url = "https://www.youtube.com/playlist?list=WL"
-        self.next_start_index = 1
-
-        self.btn_buscar.Enable(False)
-        self.btn_siguientes.Enable(False)
-        if hasattr(self, 'item_siguientes'):
-            self.item_siguientes.Enable(False)
-        self.txt_busqueda.Enable(False)
-        self.set_status("Obteniendo tu lista 'Ver más tarde' de YouTube...", field=0, announce=True)
-        self.lbl_progreso_detalle.SetLabel("Cargando lista Ver más tarde...")
-
-        def _worker():
-            try:
-                resultados = self.downloader.buscar_ver_mas_tarde(max_results=max_results, start_index=1)
-                wx.CallAfter(self._on_search_completed, resultados, "Ver más tarde", False)
-            except Exception as e:
-                wx.CallAfter(self._on_search_error, str(e))
-
-        threading.Thread(target=_worker, daemon=True).start()
-
-    def ejecutar_busqueda_mis_playlists(self):
-        """Carga las listas de reproducción de la cuenta del usuario."""
-        if not self.verificar_libreria_ytdlp():
-            return
-        if not self._verificar_sesion_configurada():
-            return
-        if self.is_searching:
-            return
-        if hasattr(self, 'navigation_stack'):
-            self.navigation_stack.clear()
-        self._pending_nav_state = None
-        max_results = int(self.config.get('max_results', 25))
-        self.is_searching = True
-        self.is_showing_favorites = False
-        self.last_search_query = "Mis listas de reproducción"
-        self.last_search_kind = 'mis_playlists'
-        self.last_target_url = "https://www.youtube.com/feed/playlists"
-        self.current_playlist_title = "Mis listas de reproducción"
-        self.current_channel_title = ""
-        self.next_start_index = 1
-
-        self.btn_buscar.Enable(False)
-        self.btn_siguientes.Enable(False)
-        if hasattr(self, 'item_siguientes'):
-            self.item_siguientes.Enable(False)
-        self.txt_busqueda.Enable(False)
-        self.set_status("Obteniendo tus listas de reproducción de YouTube...", field=0, announce=True)
-        self.lbl_progreso_detalle.SetLabel("Cargando listas de reproducción de la cuenta...")
-
-        def _worker():
-            try:
-                resultados = self.downloader.buscar_mis_playlists(max_results=max_results, start_index=1)
-                wx.CallAfter(self._on_search_completed, resultados, "Mis listas de reproducción", False)
-            except Exception as e:
-                wx.CallAfter(self._on_search_error, str(e))
-
-        threading.Thread(target=_worker, daemon=True).start()
-
     def on_btn_siguientes(self, event=None):
         if not self.verificar_libreria_ytdlp():
             return
         if self.is_searching:
+            return
+        if hasattr(self, 'btn_siguientes') and not self.btn_siguientes.IsEnabled():
+            accessibility.speak("No hay más resultados disponibles.")
             return
         if not self.last_search_query and not self.last_target_url:
             return
@@ -626,32 +565,31 @@ class MainSearchMixin:
         self.btn_siguientes.Enable(False)
         if hasattr(self, 'item_siguientes'):
             self.item_siguientes.Enable(False)
-        self.txt_busqueda.Enable(False)
 
-        msg_status = f"Buscando los siguientes {max_results} resultados..."
-        self.set_status(msg_status, field=0, announce=True)
+        msg_status = "Buscando."
+        accessibility.silence()
+        accessibility.speak(msg_status, interrupt=True)
+        if hasattr(self, 'status_bar') and self.status_bar:
+            self.status_bar.SetStatusText("Buscando...", 0)
+        sound_manager.start_waiting_sound(interval=1.2)
         self.lbl_progreso_detalle.SetLabel(f"Cargando resultados {start_index} a {start_index + max_results - 1}...")
 
         def _worker():
             try:
                 if kind == 'canal_videos':
-                    resultados = self.downloader.buscar_canal_videos(target_url, max_results=max_results, start_index=start_index)
-                    query_desc = f"Vídeos del canal {target_url}"
+                    resultados = self.downloader.buscar_canal_videos(target_url, max_results=max_results, start_index=start_index, channel_title=self.current_channel_title)
+                    ch_nombre = self.current_channel_title or target_url
+                    query_desc = f"Vídeos del canal {ch_nombre}"
+                    if self.current_channel_title:
+                        for r in resultados:
+                            if r.get('channel') in ('Desconocido', '', None):
+                                r['channel'] = self.current_channel_title
                 elif kind == 'canal_playlists':
                     resultados = self.downloader.buscar_canal_playlists(target_url, max_results=max_results, start_index=start_index)
                     query_desc = f"Listas de reproducción del canal {target_url}"
                 elif kind == 'playlist_videos':
                     resultados = self.downloader.buscar_playlist_videos(target_url, max_results=max_results, start_index=start_index)
                     query_desc = "Vídeos de la lista"
-                elif kind == 'historial':
-                    resultados = self.downloader.buscar_historial(max_results=max_results, start_index=start_index)
-                    query_desc = "Historial de YouTube"
-                elif kind == 'ver_mas_tarde':
-                    resultados = self.downloader.buscar_ver_mas_tarde(max_results=max_results, start_index=start_index)
-                    query_desc = "Ver más tarde"
-                elif kind == 'mis_playlists':
-                    resultados = self.downloader.buscar_mis_playlists(max_results=max_results, start_index=start_index)
-                    query_desc = "Mis listas de reproducción"
                 else:
                     resultados = self.downloader.buscar(query, max_results=max_results, engine=engine, search_type=search_type, start_index=start_index)
                     query_desc = query
@@ -663,6 +601,7 @@ class MainSearchMixin:
         threading.Thread(target=_worker, daemon=True).start()
 
     def _on_search_completed(self, resultados, query_desc, append=False):
+        sound_manager.stop_waiting_sound()
         self.is_searching = False
         self.btn_buscar.Enable(True)
         self.txt_busqueda.Enable(True)
@@ -797,7 +736,18 @@ class MainSearchMixin:
         self.lista_resultados.SetFocus()
         self.set_modo_boton_buscar('limpiar')
 
+        # Precargar predictivamente el primer resultado para que si el usuario pulsa Enter sea instantáneo
+        if resultados:
+            primer_v = resultados[0]
+            if not primer_v.get('is_playlist') and not primer_v.get('is_channel'):
+                target_u = primer_v.get('url') or primer_v.get('id', '')
+                if target_u:
+                    solo_audio = not self.config.get('reproducir_con_video', True)
+                    from streaming import precargar_stream_en_segundo_plano
+                    precargar_stream_en_segundo_plano(target_u, solo_audio=solo_audio)
+
     def _on_search_error(self, error_str):
+        sound_manager.stop_waiting_sound()
         self._pending_nav_state = None
         self.is_searching = False
         self.btn_buscar.Enable(True)

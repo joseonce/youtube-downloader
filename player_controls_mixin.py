@@ -13,7 +13,7 @@ from config_manager import cargar_configuracion, guardar_configuracion
 from media_utils import formatear_duracion, formatear_visitas
 import favorites_manager
 from favorites_manager import es_favorito, eliminar_favorito, agregar_favorito
-from ui_vlc import vlc, get_vlc_module, pedir_confirmacion_eliminar_favorito
+from ui_mpv import pedir_confirmacion_eliminar_favorito
 from favorites_dialogs import SelectFavoriteListDialog
 
 
@@ -26,6 +26,142 @@ def _get_ui_func(name, default_val):
 
 
 
+class MPVPlayerCompatFacade:
+    """Fachada de compatibilidad para código o pruebas que consulten la interfaz tipo VLC."""
+    def __init__(self, mpv_player=None):
+        self._mpv = mpv_player
+
+    def get_time(self):
+        if not self._mpv:
+            return 0
+        try:
+            t = self._mpv.time_pos
+            return int(t * 1000) if t is not None else 0
+        except Exception:
+            return 0
+
+    def set_time(self, ms):
+        if self._mpv:
+            try:
+                self._mpv.time_pos = max(0.0, ms / 1000.0)
+            except Exception:
+                pass
+
+    def get_length(self):
+        if not self._mpv:
+            return 0
+        try:
+            d = self._mpv.duration
+            return int(d * 1000) if d is not None else 0
+        except Exception:
+            return 0
+
+    def get_state(self):
+        class _State:
+            NothingSpecial = 0
+            Opening = 1
+            Buffering = 2
+            Playing = 3
+            Paused = 4
+            Stopped = 5
+            Ended = 6
+            Error = 7
+        if not self._mpv:
+            return _State.Stopped
+        try:
+            if getattr(self._mpv, 'idle_active', False) or self._mpv.time_pos is None:
+                return _State.Stopped
+            if getattr(self._mpv, 'pause', False):
+                return _State.Paused
+            return _State.Playing
+        except Exception:
+            return _State.Stopped
+
+    def play(self):
+        if self._mpv:
+            try:
+                self._mpv.pause = False
+            except Exception:
+                pass
+
+    def pause(self):
+        if self._mpv:
+            try:
+                self._mpv.pause = True
+            except Exception:
+                pass
+
+    def stop(self):
+        if self._mpv:
+            try:
+                self._mpv.stop()
+            except Exception:
+                pass
+
+    def set_rate(self, r):
+        if self._mpv:
+            try:
+                self._mpv.speed = float(r)
+            except Exception:
+                pass
+
+    def audio_set_volume(self, v):
+        if self._mpv:
+            try:
+                self._mpv.volume = float(v)
+            except Exception:
+                pass
+
+    def audio_get_mute(self):
+        if self._mpv:
+            try:
+                return bool(getattr(self._mpv, 'mute', False))
+            except Exception:
+                pass
+        return False
+
+    def audio_set_mute(self, m):
+        if self._mpv:
+            try:
+                self._mpv.mute = bool(m)
+            except Exception:
+                pass
+
+    def set_position(self, pos):
+        if self._mpv:
+            try:
+                dur = self._mpv.duration
+                if dur:
+                    self._mpv.time_pos = pos * dur
+            except Exception:
+                pass
+
+    def set_hwnd(self, hwnd):
+        if self._mpv:
+            try:
+                if hwnd:
+                    self._mpv.wid = int(hwnd)
+            except Exception:
+                pass
+
+    def audio_output_device_set(self, _, dev_id):
+        if self._mpv:
+            try:
+                from ui_mpv import resolve_mpv_audio_device
+                self._mpv['audio-device'] = resolve_mpv_audio_device(dev_id, player=self._mpv)
+            except Exception:
+                try:
+                    self._mpv['audio-device'] = 'auto'
+                except Exception:
+                    pass
+
+    def set_media(self, _):
+        pass
+
+    def release(self):
+        pass
+
+
 class PlayerControlsMixin:
     def on_slider_start_drag(self, event):
         self.is_dragging_slider = True
@@ -33,11 +169,16 @@ class PlayerControlsMixin:
 
     def on_slider_seek(self, event):
         self.is_dragging_slider = False
-        if not self.vlc_player:
-            return
         val = self.slider_pos.GetValue()
         pos_frac = val / 1000.0
-        self.vlc_player.set_position(pos_frac)
+        mp = getattr(self, 'mpv_player', None)
+        if mp:
+            try:
+                dur = getattr(mp, 'duration', None)
+                if dur:
+                    mp.time_pos = pos_frac * dur
+            except Exception:
+                pass
         event.Skip()
 
     def _redirigir_foco_desde_slider_pos(self):
@@ -47,8 +188,12 @@ class PlayerControlsMixin:
 
     def on_volume_change(self, event):
         vol = self.slider_vol.GetValue()
-        if self.vlc_player:
-            self.vlc_player.audio_set_volume(vol)
+        mp = getattr(self, 'mpv_player', None)
+        if mp:
+            try:
+                mp.volume = float(vol)
+            except Exception:
+                pass
         cfg = cargar_configuracion()
         cfg['volumen'] = vol
         guardar_configuracion(cfg)
@@ -101,12 +246,12 @@ class PlayerControlsMixin:
                 self._trigger_prefetch_pipeline()
 
     def stop(self, event=None):
-        if not self.vlc_player:
-            return
-        try:
-            self.vlc_player.stop()
-        except Exception:
-            pass
+        mp = getattr(self, 'mpv_player', None)
+        if mp:
+            try:
+                mp.stop()
+            except Exception:
+                pass
         if hasattr(self, 'timer') and self.timer.IsRunning():
             self.timer.Stop()
         self.slider_pos.SetValue(0)
@@ -157,15 +302,48 @@ class PlayerControlsMixin:
 
     def anunciar_porcentaje(self):
         """Anuncia al lector de pantalla el porcentaje de reproducción del vídeo (F8)."""
-        if not self.vlc_player:
-            accessibility.speak("Reproductor no inicializado.")
-            return
-        length_ms = self.vlc_player.get_length()
-        time_ms = self.vlc_player.get_time()
-        if length_ms <= 0 or time_ms < 0:
+        mp = getattr(self, 'mpv_player', None)
+        length_s = 0
+        time_s = 0
+        if mp:
+            try:
+                dur = getattr(mp, 'duration', None)
+                if dur and dur > 0:
+                    length_s = float(dur)
+                pos = getattr(mp, 'time_pos', None)
+                if pos is not None and pos >= 0:
+                    time_s = float(pos)
+            except Exception:
+                pass
+
+        vp = getattr(self, 'vlc_player', None)
+        if vp and length_s <= 0:
+            try:
+                l_ms = getattr(vp, 'get_length', lambda: 0)() or 0
+                t_ms = getattr(vp, 'get_time', lambda: 0)() or 0
+                if l_ms > 0:
+                    length_s = float(l_ms) / 1000.0
+                    time_s = max(0.0, float(t_ms) / 1000.0)
+            except Exception:
+                pass
+
+        if length_s <= 0 and hasattr(self, 'video') and self.video:
+            length_s = float(self.video.get('duration_seconds') or 0)
+            if length_s <= 0 and self.video.get('duration'):
+                try:
+                    parts = [int(p) for p in self.video['duration'].split(':')]
+                    if len(parts) == 2:
+                        length_s = float(parts[0] * 60 + parts[1])
+                    elif len(parts) == 3:
+                        length_s = float(parts[0] * 3600 + parts[1] * 60 + parts[2])
+                except Exception:
+                    pass
+
+        if length_s <= 0:
             accessibility.speak("Porcentaje no disponible.")
             return
-        percent = int((time_ms / length_ms) * 100)
+
+        percent = int((time_s / length_s) * 100)
         percent = min(100, max(0, percent))
         msg = f"{percent} por ciento."
         accessibility.speak(msg)
@@ -173,14 +351,30 @@ class PlayerControlsMixin:
 
     def anunciar_tiempo_transcurrido(self):
         """Anuncia al lector de pantalla el tiempo transcurrido de la reproducción (F9)."""
-        if not self.vlc_player:
-            accessibility.speak("Reproductor no inicializado.")
-            return
-        time_ms = self.vlc_player.get_time()
-        if time_ms < 0:
+        mp = getattr(self, 'mpv_player', None)
+        cur_sec = -1
+        if mp:
+            try:
+                t = getattr(mp, 'time_pos', None)
+                if t is not None and t >= 0:
+                    cur_sec = int(t)
+                elif getattr(mp, 'idle_active', False) is False and getattr(mp, 'duration', None):
+                    cur_sec = 0
+            except Exception:
+                pass
+
+        if cur_sec < 0 and getattr(self, 'vlc_player', None):
+            try:
+                t = self.vlc_player.get_time()
+                if t >= 0:
+                    cur_sec = int(t / 1000)
+            except Exception:
+                pass
+
+        if cur_sec < 0:
             accessibility.speak("Tiempo transcurrido no disponible.")
             return
-        cur_sec = int(time_ms / 1000)
+
         duracion_str = formatear_duracion(cur_sec)
         msg = f"Tiempo transcurrido: {duracion_str}"
         accessibility.speak(msg)
@@ -188,15 +382,48 @@ class PlayerControlsMixin:
 
     def anunciar_tiempo_restante(self):
         """Anuncia al lector de pantalla el tiempo restante de la reproducción (F10)."""
-        if not self.vlc_player:
-            accessibility.speak("Reproductor no inicializado.")
-            return
-        length_ms = self.vlc_player.get_length()
-        time_ms = self.vlc_player.get_time()
-        if length_ms <= 0 or time_ms < 0:
+        mp = getattr(self, 'mpv_player', None)
+        length_s = 0
+        time_s = 0
+        if mp:
+            try:
+                dur = getattr(mp, 'duration', None)
+                if dur and dur > 0:
+                    length_s = float(dur)
+                pos = getattr(mp, 'time_pos', None)
+                if pos is not None and pos >= 0:
+                    time_s = float(pos)
+            except Exception:
+                pass
+
+        vp = getattr(self, 'vlc_player', None)
+        if vp and length_s <= 0:
+            try:
+                l_ms = getattr(vp, 'get_length', lambda: 0)() or 0
+                t_ms = getattr(vp, 'get_time', lambda: 0)() or 0
+                if l_ms > 0:
+                    length_s = float(l_ms) / 1000.0
+                    time_s = max(0.0, float(t_ms) / 1000.0)
+            except Exception:
+                pass
+
+        if length_s <= 0 and hasattr(self, 'video') and self.video:
+            length_s = float(self.video.get('duration_seconds') or 0)
+            if length_s <= 0 and self.video.get('duration'):
+                try:
+                    parts = [int(p) for p in self.video['duration'].split(':')]
+                    if len(parts) == 2:
+                        length_s = float(parts[0] * 60 + parts[1])
+                    elif len(parts) == 3:
+                        length_s = float(parts[0] * 3600 + parts[1] * 60 + parts[2])
+                except Exception:
+                    pass
+
+        if length_s <= 0:
             accessibility.speak("Tiempo restante no disponible.")
             return
-        rem_sec = max(0, int((length_ms - time_ms) / 1000))
+
+        rem_sec = max(0, int(length_s - time_s))
         duracion_str = formatear_duracion(rem_sec)
         msg = f"Tiempo restante: {duracion_str}"
         accessibility.speak(msg)
@@ -234,9 +461,10 @@ class PlayerControlsMixin:
         nueva_vel = max(0.5, min(2.0, nueva_vel))
         self.playback_speed = nueva_vel
 
-        if self.vlc_player:
+        mp = getattr(self, 'mpv_player', None)
+        if mp:
             try:
-                self.vlc_player.set_rate(nueva_vel)
+                mp.speed = float(nueva_vel)
             except Exception:
                 pass
 
@@ -366,42 +594,15 @@ class PlayerControlsMixin:
         self.video_panel.Show(self.show_video)
         self.Layout()
 
-        cur_pos = self.vlc_player.get_time() if self.vlc_player else 0
-        is_playing = False
-        if self.vlc_player:
-            try:
-                is_playing = (self.vlc_player.get_state() == vlc.State.Playing)
-            except Exception:
-                pass
-
+        mp = getattr(self, 'mpv_player', None)
         if not self.show_video:
             if not self.IsMaximized():
                 self.SetSize((920, 260))
             self.btn_toggle_video.SetLabel("Vídeo: Desactivado (F11)")
             msg = "Vídeo desactivado"
-            # Detener salida de vídeo y desvincular HWND para evitar ventanas emergentes de Direct3D
-            if self.vlc_player and sys.platform.startswith('win'):
+            if mp:
                 try:
-                    self.vlc_player.set_hwnd(0)
-                except Exception:
-                    pass
-            # Recargar media con :no-video para liberar completamente el renderizador de vídeo
-            stream_url = getattr(self, '_current_stream_url', None)
-            if stream_url and self.vlc_player and self.vlc_instance:
-                try:
-                    media = self.vlc_instance.media_new(stream_url)
-                    media.add_option(':network-caching=300')
-                    media.add_option(':no-video')
-                    self.vlc_player.set_media(media)
-                    if is_playing:
-                        self.vlc_player.play()
-                        if cur_pos > 0:
-                            self.vlc_player.set_time(cur_pos)
-                        if hasattr(self, 'playback_speed'):
-                            try:
-                                self.vlc_player.set_rate(self.playback_speed)
-                            except Exception:
-                                pass
+                    mp.vid = 'no'
                 except Exception:
                     pass
         else:
@@ -409,28 +610,9 @@ class PlayerControlsMixin:
                 self.SetSize((920, 680))
             self.btn_toggle_video.SetLabel("Vídeo: Activado (F11)")
             msg = "Vídeo activado"
-            if self.vlc_player and sys.platform.startswith('win'):
+            if mp:
                 try:
-                    hwnd = self.video_panel.GetHandle()
-                    self.vlc_player.set_hwnd(hwnd)
-                except Exception:
-                    pass
-            # Recargar media sin :no-video para mostrar el vídeo en el panel
-            stream_url = getattr(self, '_current_stream_url', None)
-            if stream_url and self.vlc_player and self.vlc_instance:
-                try:
-                    media = self.vlc_instance.media_new(stream_url)
-                    media.add_option(':network-caching=300')
-                    self.vlc_player.set_media(media)
-                    if is_playing:
-                        self.vlc_player.play()
-                        if cur_pos > 0:
-                            self.vlc_player.set_time(cur_pos)
-                        if hasattr(self, 'playback_speed'):
-                            try:
-                                self.vlc_player.set_rate(self.playback_speed)
-                            except Exception:
-                                pass
+                    mp.vid = 'auto'
                 except Exception:
                     pass
 
@@ -440,50 +622,54 @@ class PlayerControlsMixin:
             wx.CallAfter(self.btn_toggle_video.SetFocus)
 
     def toggle_play_pause(self, event):
-        if not self.vlc_player:
-            return
-        state = self.vlc_player.get_state()
-        if state == vlc.State.Playing:
-            self.vlc_player.pause()
-            self.btn_play_pause.SetLabel("Reanudar")
-            self.lbl_status.SetLabel("Vídeo pausado.")
-            accessibility.speak("Pausa.")
-        elif state in (vlc.State.Ended, vlc.State.Stopped):
-            self.load_and_play_current()
-        else:
-            self.vlc_player.play()
-            self.btn_play_pause.SetLabel("Pausar")
-            self.lbl_status.SetLabel("Reproduciendo vídeo.")
-            accessibility.speak("Reanudado.")
-            if hasattr(self, 'timer') and not self.timer.IsRunning():
-                self.timer.Start(500)
+        mp = getattr(self, 'mpv_player', None)
+        if mp:
+            try:
+                is_paused = getattr(mp, 'pause', False)
+                if not is_paused:
+                    mp.pause = True
+                    self.btn_play_pause.SetLabel("Reanudar")
+                    self.lbl_status.SetLabel("Vídeo pausado.")
+                    accessibility.speak("Pausa.")
+                else:
+                    mp.pause = False
+                    self.btn_play_pause.SetLabel("Pausar")
+                    self.lbl_status.SetLabel("Reproduciendo vídeo.")
+                    accessibility.speak("Reanudado.")
+                    if hasattr(self, 'timer') and not self.timer.IsRunning():
+                        self.timer.Start(500)
+                return
+            except Exception:
+                pass
 
     def seek_relative(self, seconds):
-        if not self.vlc_player:
-            return
-        cur_time = self.vlc_player.get_time()
-        if cur_time >= 0:
-            new_time = max(0, cur_time + (seconds * 1000))
-            length_ms = self.vlc_player.get_length()
-            if length_ms > 0:
-                new_time = min(new_time, length_ms)
-            self.vlc_player.set_time(new_time)
-            cur_sec = int(new_time / 1000)
-            tot_sec = int(length_ms / 1000) if length_ms > 0 else 0
-            self.lbl_time.SetLabel(f"{formatear_duracion(cur_sec)} / {formatear_duracion(tot_sec) if tot_sec else '--:--'}")
+        mp = getattr(self, 'mpv_player', None)
+        if mp:
+            try:
+                mp.seek(seconds, reference='relative')
+                cur_sec = int(mp.time_pos or 0)
+                tot_sec = int(mp.duration or 0)
+                self.lbl_time.SetLabel(f"{formatear_duracion(cur_sec)} / {formatear_duracion(tot_sec) if tot_sec else '--:--'}")
+                return
+            except Exception:
+                pass
 
     def toggle_mute(self, event):
-        if not self.vlc_player:
-            return
-        is_muted = self.vlc_player.audio_get_mute()
-        new_mute = not is_muted
-        self.vlc_player.audio_set_mute(new_mute)
-        if new_mute:
-            self.btn_mute.SetLabel("Activar sonido")
-            accessibility.speak("Sonido silenciado.")
-        else:
-            self.btn_mute.SetLabel("Silenciar")
-            accessibility.speak("Sonido activado.")
+        mp = getattr(self, 'mpv_player', None)
+        if mp:
+            try:
+                is_muted = getattr(mp, 'mute', False)
+                new_mute = not is_muted
+                mp.mute = new_mute
+                if new_mute:
+                    self.btn_mute.SetLabel("Activar sonido")
+                    accessibility.speak("Sonido silenciado.")
+                else:
+                    self.btn_mute.SetLabel("Silenciar")
+                    accessibility.speak("Sonido activado.")
+                return
+            except Exception:
+                pass
 
     def on_download_click(self, event):
         if getattr(self, '_is_closing', False):
@@ -492,6 +678,13 @@ class PlayerControlsMixin:
         self.wants_download = True
         self.download_target_video = self.video
         self.on_cleanup()
+        parent = self.GetParent()
+        if hasattr(parent, 'active_preview_dialog') and parent.active_preview_dialog is self:
+            parent.active_preview_dialog = None
+        if hasattr(parent, '_procesar_descarga_desde_reproductor'):
+            parent._procesar_descarga_desde_reproductor(self)
+        if hasattr(parent, '_sincronizar_vista_favoritos_tras_reproduccion'):
+            parent._sincronizar_vista_favoritos_tras_reproduccion()
         if self.IsModal():
             self.EndModal(wx.ID_OK)
         else:
@@ -539,37 +732,21 @@ class PlayerControlsMixin:
         if hasattr(self, '_prefetch_timer') and self._prefetch_timer and self._prefetch_timer.IsRunning():
             self._prefetch_timer.Stop()
 
-        p = getattr(self, 'vlc_player', None)
-        self.vlc_player = None
-        inst = getattr(self, 'vlc_instance', None)
-        self.vlc_instance = None
+        mp = getattr(self, 'mpv_player', None)
+        self.mpv_player = None
 
-        if p and sys.platform.startswith('win'):
-            try:
-                p.set_hwnd(0)
-            except Exception:
-                pass
+        if mp:
+            def _cleanup_mpv(player):
+                try:
+                    player.stop()
+                except Exception:
+                    pass
+                try:
+                    player.terminate()
+                except Exception:
+                    pass
 
-        if p or inst:
-            def _cleanup_vlc(player, instance):
-                if player:
-                    try:
-                        cur_st = player.get_state()
-                        if vlc and cur_st not in (vlc.State.Ended, vlc.State.Stopped):
-                            player.stop()
-                    except Exception:
-                        pass
-                    try:
-                        player.release()
-                    except Exception:
-                        pass
-                if instance:
-                    try:
-                        instance.release()
-                    except Exception:
-                        pass
-
-            t = threading.Thread(target=_cleanup_vlc, args=(p, inst), daemon=True)
+            t = threading.Thread(target=_cleanup_mpv, args=(mp,), daemon=True)
             t.start()
             t.join(timeout=0.1)
 

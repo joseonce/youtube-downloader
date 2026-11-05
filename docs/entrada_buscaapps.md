@@ -41,7 +41,7 @@ El programa permite buscar cómodamente en YouTube y descargar desde más de 2.0
 - **Compatibilidad con más de 2.000 plataformas:** el motor universal reconoce y procesa automáticamente cualquier enlace directo pegado en la barra de búsqueda (SoundCloud, Bandcamp, Bilibili, Twitch, TikTok, Vimeo, RTVE, Ivoox y miles de servicios compatibles).
 
 ### Reproductor multimedia integrado con streaming continuo
-Una de las grandes fortalezas del programa es que no obliga a descargar los archivos para poder disfrutarlos. Incorpora un reproductor nativo basado en **VLC** optimizado para accesibilidad:
+Una de las grandes fortalezas del programa es que no obliga a descargar los archivos para poder disfrutarlos. Incorpora un reproductor multimedia nativo de alta eficiencia optimizado para accesibilidad:
 
 - **Streaming inmediato:** escucha cualquier vídeo o pista al instante sin esperar a que termine de descargarse.
 - **Reproducción continua de selecciones salteadas:** mediante la barra espaciadora (`Espacio`), puedes marcar elementos no consecutivos de la lista (por ejemplo, el 1º, el 4º y el 7º) y pulsar `Ctrl + P` para que el reproductor los emita en secuencia continua sin silencios ni pausas intermedias.

@@ -186,6 +186,31 @@ def speak(message: str, interrupt: bool = True, require_focus: bool = True):
             pass
 
 
+def silence():
+    """
+    Silencia inmediatamente cualquier locución en curso en el lector de pantalla.
+    """
+    global _speaker, _initialized
+    if not _initialized and _speaker is None:
+        init_accessibility()
+    if _speaker:
+        try:
+            if hasattr(_speaker, 'silence'):
+                _speaker.silence()
+        except Exception:
+            pass
+        try:
+            if hasattr(_speaker, 'outputs'):
+                for out in _speaker.outputs:
+                    if hasattr(out, 'silence'):
+                        try:
+                            out.silence()
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
+
 def shutdown_accessibility():
     """
     Libera los recursos y referencias del subsistema de accesibilidad,

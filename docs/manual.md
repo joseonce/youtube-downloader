@@ -10,7 +10,7 @@ Bienvenido al **Descargador de YouTube**, una aplicación de escritorio diseñad
 2. [Búsqueda de Contenidos](#2-búsqueda-de-contenidos)
 3. [Tipos de Búsqueda: Vídeos, Canales y Listas](#3-tipos-de-búsqueda-vídeos-canales-y-listas)
 4. [Plataformas Multimedia Soportadas](#4-plataformas-multimedia-soportadas)
-5. [Reproducción Multimedia Continua (VLC)](#5-reproducción-multimedia-continua-vlc)
+5. [Reproducción Multimedia Continua e Integrada](#5-reproducción-multimedia-continua-e-integrada)
 6. [Descarga de Archivos y Formatos](#6-descarga-de-archivos-y-formatos)
 7. [Sistema de Múltiples Listas de Favoritos](#7-sistema-de-múltiples-listas-de-favoritos)
 8. [Configuración y Opciones del Programa](#8-configuración-y-opciones-del-programa)
@@ -26,7 +26,7 @@ La aplicación organiza sus componentes en carpetas independientes para máxima 
 - **`bin/`**: Aloja el motor de descarga `yt-dlp.exe` y recibe automáticamente las actualizaciones Nightly descargadas desde el programa.
 - **`config/`**: Contiene la configuración general del usuario (`config.json`) y la subcarpeta **`config/favoritos/`**, donde se almacena cada lista de favoritos en un fichero independiente `.json`.
 - **`docs/`**: Incluye este manual de usuario (`manual.md`), la versión web interactiva (`manual.html`) y la guía de atajos (`atajos.md` / `atajos.html`).
-- **`resources/`** (y `resources/vlc/`): Contiene los módulos y librerías externas de reproducción nativa (VLC), manteniendo el ejecutable ligero y desacoplado.
+- **`resources/`** (y `resources/mpv/`): Contiene los módulos y librerías externas de reproducción nativa integrada (MPV), permitiendo que el ejecutable principal sea ligero e independiente.
 
 ---
 
@@ -60,31 +60,33 @@ No es necesario seleccionar ninguna plataforma previa: basta con pegar cualquier
 
 ---
 
-## 5. Reproducción Multimedia Continua (VLC)
+## 5. Reproducción Multimedia Continua e Integrada
 
 La aplicación cuenta con un reproductor integrado con soporte de streaming directo y pre-carga en segundo plano:
 
 - **Reproducir selección individual o marcada**: Pulsa **`Ctrl + P`** o el botón *Reproducir selección*.
 - **Reproducción continua de pistas marcadas (salteadas)**: Puedes marcar con la barra espaciadora (**`Espacio`**) cualquier combinación de pistas no consecutivas de la lista de resultados (por ejemplo: la 1ª, la 3ª, la 6ª y la 10ª). Al pulsar **`Ctrl + P`** o el botón *Reproducir (N)*, el reproductor reproducirá en secuencia continua exclusivamente esas pistas seleccionadas, saltando automáticamente las intermedias.
 - **Reproducir toda la lista continua**: Pulsa **`Ctrl + L`** para iniciar la reproducción ininterrumpida de todos los vídeos de la búsqueda.
-- **Pausar o reanudar**: Pulsa **`Espacio`** dentro del reproductor para pausar o continuar la reproducción.
+- **Pausar o reanudar**: Pulsa la tecla **`P`** dentro del reproductor para pausar o continuar la reproducción. La barra espaciadora (**`Espacio`**) acciona o pulsa el control o botón que tenga el foco activo en ese momento en la ventana, garantizando total accesibilidad por teclado.
 - **Control de volumen**: Pulsa **`Flecha Arriba`** para subir volumen (+5%) o **`Flecha Abajo`** para bajarlo (-5%).
 - **Silenciar / Activar sonido (Mute)**: Pulsa la tecla **`M`** para silenciar el sonido o volver al volumen anterior.
-- **Avanzar / Retroceder canciones de la lista en reproducción**: Pulsa **`Ctrl + Flecha Derecha`** (o tecla **`N`**) para pasar a la siguiente canción de la lista, y **`Ctrl + Flecha Izquierda`** (o tecla **`P`**) para volver a la canción anterior.
+- **Avanzar / Retroceder canciones de la lista en reproducción**: Pulsa **`Ctrl + Flecha Derecha`** (o tecla **`N`**) para pasar a la siguiente canción de la lista, y **`Ctrl + Flecha Izquierda`** (o **`Ctrl + P`**) para volver a la canción anterior.
 - **Añadir o quitar de Favoritos**: Pulsa la tecla **`B`** o **`F`** para añadir o eliminar de favoritos la pista que estás escuchando.
 - **Descargar la pista en reproducción**: Pulsa **`Ctrl + D`** para descargar directamente el archivo en curso.
 - **Cerrar el reproductor**: Pulsa **`Escape`** para detener la reproducción y regresar a la lista de resultados.
 - **Activar / Desactivar ventana de vídeo (`F11`)**: Puedes ocultar o mostrar el panel de vídeo en cualquier instante pulsando **`F11`** o el botón de la barra de controles. Al desactivar el vídeo, el reproductor adopta un modo compacto de solo audio.
 - **Modo Solo Audio Ultrarrápido**: Si configuras en Preferencias reproducir sin vídeo, la aplicación descarga y transmite exclusivamente el flujo de audio ligero, logrando transiciones instantáneas entre canciones con mínimo consumo de datos y CPU.
 - **Pre-buffering inteligente**: A los 2 segundos de comenzar cada pista (y 15 segundos antes del final), el programa precarga automáticamente el siguiente contenido para una transición fluida y sin silencios.
-- **Recuperación automática de foco tras cambio de tarea**: Si cambias de ventana o tarea en Windows (`Alt + Tab`) mientras estás reproduciendo y luego vuelves a YouTubeDownloader, la aplicación eleva automáticamente la ventana del reproductor y le devuelve el foco de inmediato para que puedas continuar controlando la reproducción, alternar vídeo (**`F11`**), volumen y atajos sin ninguna fricción.
+- **Ventana del reproductor configurable (Independiente o enlazada)**: Desde Preferencias puedes configurar si el reproductor de vídeo se abre en una ventana propia independiente o enlazada. En modo independiente, puedes alternar libremente entre la ventana principal y el reproductor para buscar más vídeos, añadirlos a la cola o gestionar favoritos mientras se reproduce contenido multimedia. Si se desactiva, la ventana principal se oculta temporalmente durante la reproducción como en versiones anteriores, devolviendo el foco automáticamente al reproductor al alternar con **`Alt + Tab`**.
+- **Cierre y desaparición automática del reproductor al finalizar**: Es configurable desde Preferencias (`Ctrl + ,`) que la ventana del reproductor se cierre y desaparezca automáticamente cuando no haya nada más que reproducir (al concluir la pista individual o al completarse el último elemento de la cola de reproducción).
 - **Repetición continua**: Desactivada por defecto, pero conmutable al instante con la tecla **`R`**, el botón de repetición o en Preferencias.
 - **Resumen de teclas en el reproductor**:
-  - **`Espacio`**: Pausar / Reanudar reproducción.
+  - **`P`**: Pausar / Reanudar reproducción.
+  - **`Espacio`**: Accionar o pulsar el botón enfocado en la ventana del reproductor.
   - **`Flecha Arriba / Abajo`**: Subir / Bajar volumen (+/- 5%).
   - **`M`**: Silenciar / Activar sonido (Mute).
   - **`Ctrl + Flecha Derecha`** o **`N`**: Avanzar a la siguiente canción / pista de la lista en reproducción.
-  - **`Ctrl + Flecha Izquierda`** o **`P`**: Retroceder a la canción / pista anterior de la lista en reproducción.
+  - **`Ctrl + Flecha Izquierda`** o **`Ctrl + P`**: Retroceder a la canción / pista anterior de la lista en reproducción.
   - **`B`** o **`F`**: Añadir o quitar de favoritos.
   - **`R`**: Alternar repetición continua (bucle).
   - **`F11`**: Activar / Desactivar ventana de vídeo (modo solo audio).
@@ -122,6 +124,24 @@ Para descargar contenidos:
 - **Señalización sonora de espera**: Al iniciar la descarga se emite un leve sonido periódico (cada 2 segundos) que indica que la tarea está en curso y procesándose en segundo plano, deteniéndose automáticamente cuando la descarga finaliza o se cancela.
 6. Puedes cancelar la descarga en cualquier momento durante el proceso pulsando **Cancelar** (`Alt + X`).
 
+
+### 6.1. Descarga de Transcripciones y Subtítulos a Texto (.txt)
+
+Puedes extraer y guardar la transcripción completa de cualquier vídeo de YouTube a texto plano (.txt), ya sea en su idioma original y/o traducida al idioma elegido:
+1. Selecciona o marca uno o varios vídeos en la lista de resultados.
+2. Pulsa la tecla **`Aplicaciones`** (o clic secundario) y elige la opción **Descargar transcripción a texto (.txt)**. También disponible desde la cola de reproducción (**`Ctrl + Q`**).
+3. En el diálogo accesible que aparece, personaliza las siguientes opciones:
+   - **Formato del texto**:
+     - *Texto continuo y limpio*: El texto se formatea separado línea por línea (frase por frase o segmento hablado), ideal para una lectura cómoda y natural con lectores de pantalla (NVDA, JAWS) o editores de texto utilizando las flechas de dirección.
+     - *Con marcas de tiempo*: Añade la marca temporal `[mm:ss]` (o `[hh:mm:ss]`) al inicio de cada línea para ubicar con precisión el momento exacto en el vídeo.
+   - **Idioma y traducción inteligente**:
+     - Puedes descargar en el **idioma original** del vídeo o elegir traducirlo automáticamente a **Español**, **Inglés**, **Francés**, **Alemán**, **Italiano**, **Portugués**, **Catalán**, **Gallego**, **Euskera**, **Ruso**, **Chino**, **Japonés** u otro código ISO.
+     - La traducción se realiza en segundo plano por lotes, garantizando máxima fidelidad y evitando completamente los errores de cuota o límite de peticiones (HTTP 429).
+   - **Limpieza acústica inteligente**:
+     - Los ficheros generados se limpian automáticamente de signos musicales (`[♪♪♪]`, `[♪]`, `♪`, `♫`) y etiquetas acústicas no vocales (`[Música]`, `[Music]`, `[Aplausos]`, `[Risas]`, etc.), descartando líneas vacías y entregando una transcripción limpia y depurada.
+4. Pulsa **Descargar transcripción**. El archivo se guardará en la carpeta de descargas con el nombre del vídeo y el sufijo correspondiente (por ejemplo `Titulo [fr].txt` o `Titulo (con marcas).txt`). Al finalizar, podrás abrir directamente el archivo descargado.
+
+
 ---
 
 ## 7. Sistema de Múltiples Listas de Favoritos en Ficheros Separados
@@ -130,7 +150,7 @@ Puedes organizar tus pistas y vídeos favoritos en diferentes listas temáticas:
 - **Añadir a favoritos**: Pulsa **`Ctrl + B`** sobre cualquier elemento de la lista. Podrás elegir entre la lista *Principal*, cualquier lista existente o crear una nueva (ej. *Música Rock*, *Flamenco*, *Podcasts*, *Tutoriales*).
 - **Ver favoritos**: Pulsa **`Ctrl + H`** para cargar la lista de favoritos deseada en la tabla de resultados.
 - **Reproducción continua de favoritos**: Pulsa **`Ctrl + Shift + P`** para escuchar toda tu colección de favoritos sin interrupciones.
-- **Eliminar de favoritos con la tecla Supr**: Tanto desde la lista de resultados como directamente desde el reproductor multimedia, puedes pulsar la tecla **`Supr`** para eliminar el elemento de favoritos. El programa solicitará confirmación previa por defecto, comportamiento configurable en Opciones.
+- **Eliminación y depuración de listas de favoritos**: Puedes pulsar la tecla **`Supr`** sobre cualquier elemento para eliminarlo de favoritos, o sobre una lista de favoritos temática para eliminarla **únicamente si está vacía** (con confirmación según tus preferencias). Si la lista contiene elementos, la aplicación te avisará para que los muevas o elimines antes de borrarla, protegiendo así tus contenidos.
 - **Archivos independientes para compartir**: Cada lista de favoritos se guarda en un archivo `.json` independiente dentro de la carpeta **`config/favoritos/`** (por ejemplo: `Principal.json`, `Música Rock.json`, `Flamenco.json`). De esta forma, si quieres pasarle a un amigo tu lista de rock y a otro tu lista de flamenco según sus preferencias musicales, no necesitas compartir toda tu colección: simplemente le envías el archivo individual deseado (`Música Rock.json` o `Flamenco.json`). Al copiarlo en su carpeta `config/favoritos/`, el programa lo reconocerá automáticamente.
 
 ---
@@ -144,47 +164,14 @@ Accede al diálogo de **Preferencias** pulsando **`Ctrl + ,`** o **`F2`** para p
 - **Abrir carpeta de descargas automáticamente al finalizar**: Abre de forma inmediata la carpeta de descargas en el Explorador de Windows cuando concluye la descarga de archivos.
 - **Preguntar si abrir la carpeta al finalizar la descarga (cuadro Sí / No)**: Si la apertura automática está desmarcada, al finalizar la descarga la aplicación muestra un cuadro de diálogo accesible preguntando si deseas abrir la carpeta de destino ahora.
 - **Emitir un leve sonido de espera periódico mientras se procesa la descarga**: Activa o desactiva el suave pulso auditivo cada 2 segundos mientras las descargas están en curso (activado por defecto).
+- **Abrir reproductor en ventana independiente**: Permite que el reproductor de vídeo funcione en una ventana separada independiente, permitiéndote volver a la ventana principal de la aplicación mientras se reproduce contenido multimedia para consultar resultados, añadir vídeos a la cola de reproducción o gestionar listas de favoritos. Si se desactiva, la ventana principal se oculta temporalmente durante la reproducción como en versiones anteriores.
+- **Cerrar el reproductor al finalizar la reproducción**: Permite que el reproductor se cierre y desaparezca automáticamente cuando no haya nada que reproducir (al finalizar el elemento individual o la cola de reproducción completa).
 - **Repetición continua activada por defecto en el reproductor**: Define si el reproductor multimedia arranca en bucle continuo o no (por defecto desactivada).
 - **Reproducir con vídeo por defecto**: Activa la visualización de vídeo o el modo ultrarrápido de solo audio.
 - **Dispositivo de salida de audio**: Permite elegir la tarjeta de sonido, altavoces o auriculares específicos exclusivos para el reproductor multimedia, con botón **Probar sonido** interactivo y **Actualizar** lista de dispositivos. Las locuciones TTS y los lectores de pantalla (NVDA, JAWS, Narrador) no se ven afectados por este cambio, manteniéndose siempre en el dispositivo habitual del sistema.
 - **Locuciones de voz y lectores de pantalla**: Permite configurar cuándo emite la aplicación avisos hablados. Incluye tres opciones: **Automático** (recomendado: detecta automáticamente si hay un lector de pantalla activo como NVDA, JAWS o Narrador y solo emite locuciones en ese caso; las personas que ven y no usan lector no escucharán voces del sistema), **Siempre activadas** (emite locuciones usando la voz de Windows SAPI aunque no haya lector) y **Desactivadas** (silencio absoluto de locuciones de voz).
 - **Pedir confirmación al eliminar un elemento de favoritos**: Solicita confirmación mediante un cuadro de diálogo antes de eliminar cualquier elemento de favoritos (activada por defecto).
-- **Cuenta y Sesión de YouTube (Listas e Historial)**: Permite conectar la sesión activa de YouTube (usando el navegador Firefox/Brave o seleccionando un archivo `cookies.txt` exportado) para acceder a listas privadas, la lista "Ver más tarde" y el historial de reproducciones. Incluye un botón para probar la conexión en tiempo real.
 
-### 8.1. Configuración de Cuenta de YouTube, Cookies y Complementos de Navegador
-
-Para sacar el máximo provecho a la aplicación y vincular tu cuenta personal de YouTube:
-
-#### ¿Para qué sirven las cookies de sesión?
-1. **Acceso a contenidos privados**: Permite que el programa cargue tu Historial de reproducciones (**`Ctrl + Shift + H`**), tu lista de "Ver más tarde" (**`Ctrl + Shift + W`**) y todas las listas de reproducción privadas o creadas en tu cuenta (**`Ctrl + Shift + Y`**).
-2. **Evitar bloqueos y restricciones de YouTube**: YouTube puede restringir temporalmente peticiones anónimas (mensajes como *"Sign in to confirm you're not a bot"*, límites de descargas o vídeos con restricción de edad para mayores de 18 años). Al suministrar tus cookies de sesión iniciada, YouTube identifica que eres un usuario humano registrado y autoriza la reproducción y descarga directa sin obstáculos.
-
-#### Métodos de autenticación disponibles
-En el diálogo de **Preferencias** (**`Ctrl + ,`** o **`F2`**), dentro del grupo **Cuenta y Sesión de YouTube**:
-- **Desactivado**: No se envían credenciales (modo anónimo estándar).
-- **Extraer del navegador**: Intenta leer las cookies directamente del perfil del navegador indicado (Firefox, Chrome, Edge, Brave, Opera, Vivaldi). *Nota*: En Windows, navegadores como Google Chrome o Microsoft Edge bloquean su base de datos de cookies en modo exclusivo mientras están en ejecución, o aplican cifrado DPAPI a nivel de proceso.
-- **Archivo de cookies (`cookies.txt` exportado - Método Recomendado)**: Es la opción más fiable, universal y rápida. No depende de que el navegador esté abierto o cerrado y evita cualquier bloqueo del sistema operativo.
-
-#### Cómo conseguir complementos y generar tu archivo `cookies.txt`
-Para obtener tu archivo `cookies.txt` basta con instalar una extensión de navegador gratuita, segura y de código abierto que exporte cookies en el formato estándar Netscape:
-
-1. **Extensiones recomendadas**:
-   - **Get cookies.txt LOCALLY**:
-     - Para navegadores basados en Chromium (Google Chrome, Microsoft Edge, Brave, Opera, Vivaldi): Disponible en la **Chrome Web Store** buscando *"Get cookies.txt LOCALLY"*.
-     - Para Mozilla Firefox: Disponible en el catálogo oficial de **Firefox Browser Add-ons (AMO)** buscando *"Get cookies.txt LOCALLY"*.
-   - *(Esta extensión destaca porque procesa las cookies de forma 100% local en tu equipo, sin enviarlas a servidores de terceros).*
-
-2. **Paso a paso para exportar y configurar**:
-   1. Instala el complemento en tu navegador habitual.
-   2. Abre tu navegador y entra en [YouTube](https://www.youtube.com).
-   3. Inicia sesión con tu cuenta de Google / YouTube habitual (comprueba que aparece tu avatar en la esquina superior).
-   4. Haz clic en el icono del complemento "Get cookies.txt LOCALLY" en la barra de herramientas de tu navegador.
-   5. En el menú que se despliega, pulsa el botón **"Export"** o **"Export as cookies.txt"**.
-   6. El navegador descargará un archivo de texto (habitualmente `cookies.txt` o `youtube.com_cookies.txt`). Guárdalo en una carpeta fija de tu equipo (por ejemplo, en tus Documentos o en la carpeta del programa).
-   7. En **Descargador de YouTube**, pulsa **`Ctrl + ,`** (o **`F2`**) para abrir Opciones.
-   8. En el selector *Origen de sesión / cookies*, selecciona **Archivo de cookies (cookies.txt exportado)**.
-   9. Pulsa el botón **Examinar...** y elige tu archivo `cookies.txt`.
-   10. Pulsa el botón **Probar conexión** para comprobar que la verificación es exitosa y pulsa **Aceptar** para guardar.
 
 ---
 
@@ -211,18 +198,16 @@ Para optimizar el tamaño del ejecutable y garantizar la máxima compatibilidad 
 | **`Ctrl + D`** | Iniciar la descarga de los elementos seleccionados |
 | **`Ctrl + O`** | Abrir la carpeta de descargas en el Explorador de Windows |
 | **`Ctrl + H`** | Ver y cargar la lista de favoritos guardados |
-| **`Ctrl + Shift + H`** | Cargar el Historial de reproducciones de YouTube |
-| **`Ctrl + Shift + W`** | Cargar la lista "Ver más tarde" de YouTube |
-| **`Ctrl + Shift + Y`** | Cargar las listas de reproducción de la cuenta de YouTube |
 | **`Ctrl + Shift + P`** | Reproducir de forma continua la lista de favoritos |
 | **`Ctrl + B`** | Añadir o eliminar el elemento actual de favoritos |
-| **`Supr`** | Eliminar el elemento seleccionado de favoritos (con confirmación según preferencias) |
+| **`Supr`** | Eliminar el elemento seleccionado de favoritos, o la lista de favoritos temática si está vacía (con confirmación según preferencias) |
 | **`Ctrl + C`** | Copiar el enlace del elemento seleccionado al portapapeles |
 | **`Ctrl + U`** | Comprobar y actualizar yt-dlp a la versión Nightly |
 | **`Ctrl + ,`** o **`F2`** | Abrir la ventana de Preferencias y Opciones |
 | **`F1`** | Abrir este Manual de Usuario en el navegador |
 | **`Shift + F1`** | Abrir la Guía rápida de Atajos de Teclado en el navegador |
-| **`Escape`** | Limpiar resultados de búsqueda y volver al campo de texto (o cerrar diálogos) |
+| **`Escape`** | Retroceder nivel a nivel en la navegación jerárquica (vídeos -> lista -> canal -> favoritos/búsqueda) o limpiar resultados (y cerrar diálogos) |
+| **`Alt + Flecha Izquierda`** | Retroceder al nivel de navegación previo en la lista de resultados (equivalente a Escape en la lista) |
 | **`Alt + F4`** | Salir de la aplicación |
 
 ### Atajos de Acceso Rápido (Mnemonics Alt + Letra)
@@ -251,12 +236,13 @@ Para optimizar el tamaño del ejecutable y garantizar la máxima compatibilidad 
 ### Controles Dentro del Reproductor Multimedia
 | Tecla | Acción |
 | :--- | :--- |
-| **`Espacio`** | Pausar o reanudar reproducción |
+| **`P`** | Pausar o reanudar reproducción |
+| **`Espacio`** | Pulsar / accionar el botón enfocado en la ventana del reproductor |
 | **`Flecha Arriba`** | Subir volumen (+5%) |
 | **`Flecha Abajo`** | Bajar volumen (-5%) |
 | **`M`** | Silenciar o reactivar sonido (Mute) |
 | **`Ctrl + Flecha Derecha`** o **`N`** | Avanzar a la siguiente canción / pista de la lista en reproducción |
-| **`Ctrl + Flecha Izquierda`** o **`P`** | Retroceder a la canción / pista anterior de la lista en reproducción |
+| **`Ctrl + Flecha Izquierda`** o **`Ctrl + P`** | Retroceder a la canción / pista anterior de la lista en reproducción |
 | **`B`** o **`F`** | Añadir o eliminar pista actual de Favoritos |
 | **`Supr`** | Eliminar la pista en reproducción de Favoritos (con confirmación configurable) |
 | **`R`** | Alternar repetición continua (activar / desactivar bucle) |

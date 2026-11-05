@@ -22,18 +22,17 @@ _waiting_thread = None
 _stop_event = threading.Event()
 _lock = threading.Lock()
 _configured_audio_device = ''
-_vlc_sound_player = None
-_vlc_sound_instance = None
+_mpv_sound_player = None
 
 
 def set_audio_device(device_id=''):
     """Establece el dispositivo de salida de audio para los efectos sonoros."""
-    global _configured_audio_device, _vlc_sound_player
+    global _configured_audio_device, _mpv_sound_player
     with _lock:
         _configured_audio_device = device_id or ''
-        if _vlc_sound_player:
+        if _mpv_sound_player:
             try:
-                _vlc_sound_player.audio_output_device_set(None, _configured_audio_device)
+                _mpv_sound_player['audio-device'] = _configured_audio_device if _configured_audio_device else 'auto'
             except Exception:
                 pass
 
@@ -45,45 +44,50 @@ def get_audio_device():
         return _configured_audio_device
 
 
-def _get_vlc_for_sound():
+def _get_mpv_for_sound():
     try:
-        import ui
-        return ui.get_vlc_module()
+        import ui_mpv
+        return ui_mpv.get_mpv_module()
     except Exception:
         try:
-            import vlc
-            return vlc
+            import mpv
+            return mpv
         except Exception:
             return None
 
 
-def _play_vlc_sound_file(path, audio_dev, volume=90):
-    global _vlc_sound_instance, _vlc_sound_player
-    vlc_mod = _get_vlc_for_sound()
-    if not vlc_mod:
+def _play_mpv_sound_file(path, audio_dev, volume=90):
+    global _mpv_sound_player
+    if not audio_dev and winsound:
+        try:
+            winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+            return
+        except Exception:
+            pass
+
+    mpv_mod = _get_mpv_for_sound()
+    if not mpv_mod:
         if winsound:
             winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
         return
     try:
-        if _vlc_sound_instance is None:
-            _vlc_sound_instance = vlc_mod.Instance('--quiet')
-        if _vlc_sound_player is None:
-            _vlc_sound_player = _vlc_sound_instance.media_player_new()
+        if _mpv_sound_player is None:
+            _mpv_sound_player = mpv_mod.MPV(hwdec='no', osc=False, ytdl=False)
         if audio_dev:
             try:
-                _vlc_sound_player.audio_output_device_set(None, audio_dev)
+                _mpv_sound_player['audio-device'] = audio_dev
             except Exception:
                 pass
-        media = _vlc_sound_instance.media_new(path)
-        _vlc_sound_player.set_media(media)
-        _vlc_sound_player.audio_set_volume(volume)
-        _vlc_sound_player.play()
+        _mpv_sound_player.volume = float(volume)
+        _mpv_sound_player.play(path)
     except Exception:
         if winsound:
             try:
                 winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
             except Exception:
                 pass
+
+_play_mpv_sound_file = _play_mpv_sound_file
 
 
 def _get_base_dir():
@@ -112,14 +116,14 @@ def get_sound_file_path(sound_name='espera.wav'):
 
 def generate_subtle_waiting_wav(target_path=None):
     """
-    Sintetiza un archivo WAV suave y cálido (tono armónico sutil con envolvente suave)
+    Sintetiza un archivo WAV armónico y perfectamente audible (~130ms, -7dB)
     ideal como sonido de espera periódico sin saturar ni molestar a lectores de pantalla.
     """
     if target_path is None:
         target_path = get_sound_file_path('espera.wav')
 
     sample_rate = 44100
-    duration = 0.09  # 90 ms
+    duration = 0.13  # 130 ms
     num_samples = int(sample_rate * duration)
 
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
@@ -132,18 +136,18 @@ def generate_subtle_waiting_wav(target_path=None):
         raw = []
         for i in range(num_samples):
             t = i / sample_rate
-            # Envolvente suave: subida sinusoidal en 15ms y caída exponencial
-            if t < 0.015:
-                env = math.sin((t / 0.015) * (math.pi / 2))
+            # Envolvente suave: ataque en 12ms y caída exponencial cómoda
+            if t < 0.012:
+                env = math.sin((t / 0.012) * (math.pi / 2))
             else:
-                env = math.exp(-(t - 0.015) * 40.0)
+                env = math.exp(-(t - 0.012) * 22.0)
 
-            # Tono armónico suave: 523.25 Hz (Do5) con un armónico superior atenuado
-            tone = (0.75 * math.sin(2 * math.pi * 523.25 * t) + 
-                    0.25 * math.sin(2 * math.pi * 1046.50 * t))
+            # Tono armónico agradable: Mi5 (659.25 Hz) con armónico superior Mi6 (1318.50 Hz)
+            tone = (0.70 * math.sin(2 * math.pi * 659.25 * t) + 
+                    0.30 * math.sin(2 * math.pi * 1318.50 * t))
             
-            # Amplitud leve y cómoda (~16% de volumen máximo, aprox. -16dB)
-            sample = int(tone * env * 32767 * 0.16)
+            # Amplitud sonora equilibrada (~45% de volumen máximo, aprox. -7dB)
+            sample = int(tone * env * 32767 * 0.45)
             sample = max(-32768, min(32767, sample))
             raw.append(struct.pack('<h', sample))
 
@@ -232,7 +236,7 @@ def play_sound(sound_name='espera.wav', volume=90):
         if os.path.isfile(path):
             dev = get_audio_device()
             if dev:
-                _play_vlc_sound_file(path, dev, volume=volume)
+                _play_mpv_sound_file(path, dev, volume=volume)
             elif winsound is not None:
                 winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
     except Exception:
@@ -250,7 +254,7 @@ def play_completion_sound():
         path = get_sound_file_path('completado.wav')
         dev = get_audio_device()
         if dev:
-            _play_vlc_sound_file(path, dev, volume=100)
+            _play_mpv_sound_file(path, dev, volume=100)
         elif winsound is not None:
             winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC)
     except Exception:
@@ -286,9 +290,9 @@ def _waiting_loop(interval):
             pass
 
 
-def start_waiting_sound(interval=2.0):
+def start_waiting_sound(interval=1.2):
     """
-    Inicia la reproducción periódica del sonido de espera (cada 2 segundos por defecto).
+    Inicia la reproducción periódica del sonido de espera (cada 1.2 segundos por defecto).
     Es seguro llamarlo múltiples veces; si ya está corriendo, no crea hilos adicionales.
     """
     global _waiting_thread
@@ -313,7 +317,7 @@ def stop_waiting_sound():
     """
     Detiene inmediatamente el sonido de espera y purga cualquier sonido en reproducción.
     """
-    global _waiting_thread, _vlc_sound_player
+    global _waiting_thread, _mpv_sound_player
     with _lock:
         _stop_event.set()
         if winsound is not None:
@@ -321,9 +325,9 @@ def stop_waiting_sound():
                 winsound.PlaySound(None, winsound.SND_PURGE)
             except Exception:
                 pass
-        if _vlc_sound_player is not None:
+        if _mpv_sound_player is not None:
             try:
-                _vlc_sound_player.stop()
+                _mpv_sound_player.stop()
             except Exception:
                 pass
         _waiting_thread = None

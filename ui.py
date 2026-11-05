@@ -33,9 +33,6 @@ from config_manager import (
     abrir_atajos_teclado,
     cargar_configuracion,
     guardar_configuracion,
-    get_cookie_args,
-    get_cookie_ydl_opts,
-    probar_conexion_sesion,
     ENGINES_MAP
 )
 
@@ -79,10 +76,10 @@ from streaming import (
 
 from downloader import YouTubeDownloader
 
-from ui_vlc import (
+from ui_mpv import (
     mostrar_notificacion_bandeja,
-    init_vlc_env,
-    get_vlc_module,
+    init_mpv_env,
+    get_mpv_module,
     obtener_dispositivos_audio,
     probar_dispositivo_audio,
     pedir_confirmacion_eliminar_favorito
@@ -212,6 +209,7 @@ class MainFrame(
 
         # Comprobar actualizaciones de la aplicación en segundo plano sin interrumpir al usuario
         updater.start_background_check(self)
+        updater.start_background_ytdlp_update()
         wx.CallAfter(self.verificar_libreria_ytdlp)
 
     def _init_ui(self):
@@ -440,12 +438,15 @@ class MainFrame(
         for p in ('Marcado - ', '[Vídeo] ', '[Canal] ', '[Lista] '):
             if title_clean.startswith(p):
                 title_clean = title_clean[len(p):]
+        for s in (' [Vídeo]', ' [Canal]', ' [Lista]'):
+            if title_clean.endswith(s):
+                title_clean = title_clean[:-len(s)]
 
         is_sel = item.get('selected', False)
         prefix_sel = "Marcado - " if is_sel else ""
 
         if is_fav_view:
-            display_title = f"{prefix_sel}{tag} {title_clean}"
+            display_title = f"{prefix_sel}{title_clean} {tag}"
         else:
             display_title = f"{prefix_sel}{title_clean}"
 

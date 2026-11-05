@@ -4,6 +4,61 @@ Todas las novedades, mejoras y correcciones notables de este proyecto quedan doc
 
 ---
 
+## [1.6.3] - 2026-11-05
+
+### Añadido
+- **Extracción de transcripciones a texto (.txt) y traducción multilingüe**:
+  - Implementada como gran novedad la extracción de subtítulos y transcripciones de los vídeos a formato texto (.txt).
+  - Los archivos de transcripción generados se guardan directamente en la carpeta de descargas configurada en la aplicación.
+  - Posibilidad de traducir el texto de la transcripción al idioma deseado, con soporte para:
+    - Idioma original del vídeo (predeterminado)
+    - Español (`es`)
+    - Inglés (`en`)
+    - Francés (`fr`)
+    - Alemán (`de`)
+    - Italiano (`it`)
+    - Portugués (`pt`)
+    - Catalán (`ca`)
+    - Gallego (`gl`)
+    - Euskera (`eu`)
+    - Ruso (`ru`)
+    - Chino (`zh`)
+    - Japonés (`ja`)
+    - Cualquier otro código de idioma ISO personalizado.
+- **Selector de estrategia de extracción en la barra de menú y en Preferencias**:
+  - Configuración accesible tanto desde la barra de menú (`Opciones` -> `Método de extracción yt-dlp`) como desde la ventana de `Preferencias` (`Ctrl + ,` / `F2`), permitiendo alternar al instante entre:
+    - *Rápido / Estándar (`android,ios,web` - Recomendado)*: máxima velocidad y fiabilidad en vídeos y audios estándar.
+    - *Compatibilidad extendida (`android,web,ios,visionos,tv`)*: resolución avanzada para directos finalizados y transmisiones complejas.
+    - *Predeterminado de yt-dlp*: comportamiento estándar de la biblioteca sin restricciones de cliente.
+- **Migración del motor de reproducción a MPV (libmpv)**:
+  - Sustitución completa del motor VLC (`libvlc` y plugins asociados) por una integración nativa y optimizada con MPV (`libmpv-2.dll`).
+  - reducción del consumo de memoria RAM en tiempo de ejecución.
+  - Streaming con mayor fluidez, menor latencia de arranque y transiciones inmediatas entre pistas de audio y vídeo.
+  - El subsistema de señalización acústica y sonidos del sistema (`sound_manager`) pasa a emplear MPV para redirección dedicada de dispositivos de audio.
+  - Optimización del intervalo del tono suave de espera a 1.2 segundos para una respuesta acústica más dinámica y agradable.
+- **Actualización automática silenciosa de yt-dlp**:
+  - Comprobación y actualización periódica en segundo plano de `yt-dlp` a la última versión Nightly una vez cada 24 horas.
+  - Proceso 100% transparente y desatendido: sin cuadros de diálogo modales, sin interrupciones en la interfaz y sin avisos sonoros molestos.
+- **Reproductor en ventana independiente y cierre automático al finalizar**:
+  - Nueva opción en Preferencias para elegir si el reproductor de vídeo se abre en una ventana independiente o si oculta la ventana principal. En modo independiente, el usuario puede seguir interactuando con la ventana principal mientras se reproduce (añadir vídeos a la cola, explorar canales o listas de favoritos).
+  - Opción en Preferencias para cerrar automáticamente la ventana del reproductor al concluir la reproducción del vídeo o al terminar la cola de reproducción secuencial.
+- **Mejoras de accesibilidad y nuevos atajos de teclado**:
+  - En el reproductor, la tecla `P` pausa o reanuda la reproducción.
+  - La barra espaciadora (`Espacio`) se reserva para accionar el botón o control que tenga el foco activo en el reproductor, conforme a los estándares de accesibilidad con lectores de pantalla.
+  - Soporte de `Ctrl + Flecha Izquierda` o `Ctrl + P` para retroceder a la canción anterior.
+  - Nuevo atajo `Alt + Flecha Izquierda` como alternativa directa a la tecla `Escape` para retroceder nivel a nivel en la navegación jerárquica de resultados y favoritos.
+  - Tecla `Supr` en la lista de favoritos permite eliminar la lista temática activa si está vacía.
+
+### Eliminado
+- **Gestión de cuenta y cookies**:
+  - Eliminación completa de la gestión de cuenta (inicio de sesión, extracción de cookies del navegador y archivos `cookies.txt`) tanto en la barra de menú como en la ventana de Preferencias, simplificando el flujo de uso y confiando en la nueva arquitectura de extracción de clientes nativos.
+
+### Cambiado
+- **Modularización interna del motor de descargas y búsquedas**:
+  - Desacoplamiento de las rutinas de búsqueda hacia un nuevo módulo `downloader_search.py`, mejorando la mantenibilidad y reduciendo la complejidad del núcleo `downloader.py`.
+
+---
+
 ## [1.6.2] - 2026-10-28
 ### Fixed
 - Sonido de espera durante la actualización ahora usa Win32 `PlaySound` (winmm.dll) en lugar de `System.Media.SoundPlayer`, garantizando reproducción en sesiones ocultas sin ventana visible.
@@ -12,7 +67,7 @@ Todas las novedades, mejoras y correcciones notables de este proyecto quedan doc
 ## [1.6.1] - 2026-10-28
 
 ### Añadido
-- **Navegación jerárquica escalonada completa con la tecla Escape**:
+- **Navegación jerárquica       escalonada completa con la tecla Escape**:
   - Al explorar favoritos temáticos, canales y playlists anidadas, la tecla Escape retrocede ordenadamente paso a paso: vídeos -> listas del canal -> lista de favoritos -> 'Mis listas de favoritos' -> limpiar resultados.
   - Se garantiza que nunca se salte el nivel de 'Mis listas de favoritos' al regresar de listas temáticas.
 - **Señalización sonora continua durante la actualización y descompresión**:

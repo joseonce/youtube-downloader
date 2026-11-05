@@ -14,7 +14,7 @@ import accessibility
 import sound_manager
 from config_manager import cargar_configuracion
 from media_utils import limpiar_caracteres_ansi, limpiar_extension_titulo
-from ui_vlc import mostrar_notificacion_bandeja
+from ui_mpv import mostrar_notificacion_bandeja
 
 FORMATOS_MAP = {
     0: 'video_best',
@@ -427,8 +427,10 @@ class MainDownloadMixin:
             wx.CallAfter(self._on_item_queue_error, "No se encontró enlace URL para el vídeo.", False)
             return
 
+        metodo_override = item.get('metodo_override') or getattr(self, 'metodo_override', None)
         try:
             self.downloader.descargar(
+                metodo_override=metodo_override,
                 url=url_target,
                 formato=fmt_actual,
                 destino=dest_actual,
@@ -627,3 +629,129 @@ class MainDownloadMixin:
             dlg.Destroy()
 
     # ---------------- DIÁLOGOS DE AYUDA, ACTUALIZACIÓN Y ACERCA DE ----------------
+
+    def on_descargar_transcripcion(self, event=None):
+        """Abre el diálogo para descargar la transcripción o subtítulos de los vídeos seleccionados a .txt."""
+        if not self.verificar_libreria_ytdlp():
+            return
+
+        seleccionados = [r for r in self.resultados if r.get('selected') and not r.get('is_channel') and not r.get('is_playlist') and not r.get('is_fav_list')]
+        if not seleccionados:
+            activo = self._get_selected_video()
+            if activo and not activo.get('is_channel') and not activo.get('is_playlist') and not activo.get('is_fav_list'):
+                seleccionados = [activo]
+
+        if not seleccionados:
+            wx.MessageBox(
+                "Por favor, selecciona o marca al menos un vídeo antes de descargar su transcripción.",
+                "Ningún vídeo seleccionado",
+                wx.OK | wx.ICON_INFORMATION,
+                self
+            )
+            return
+
+        from misc_dialogs import TranscripcionDialog
+        dlg = TranscripcionDialog(self, seleccionados)
+        res_dlg = dlg.ShowModal()
+        if res_dlg != wx.ID_OK:
+            dlg.Destroy()
+            return
+
+        con_marcas = dlg.con_marcas
+        idioma = dlg.idioma
+        dlg.Destroy()
+
+        destino = getattr(self, 'destino_descarga_actual', None) or self.destino_dir
+        if not os.path.exists(destino):
+            try:
+                os.makedirs(destino, exist_ok=True)
+            except Exception:
+                destino = os.path.expanduser("~")
+
+        total = len(seleccionados)
+        self.btn_descargar.Enable(False)
+        self.btn_buscar.Enable(False)
+        self.iniciar_sonido_espera()
+
+        msg_inicial = f"Extrayendo transcripción{'es' if total > 1 else ''} ({total} vídeo{'s' if total > 1 else ''})..."
+        self.set_status(msg_inicial, field=0, announce=True)
+        self.lbl_progreso_detalle.SetLabel(msg_inicial)
+
+        def _worker():
+            descargadas = []
+            errores = []
+
+            for idx, item in enumerate(seleccionados, 1):
+                tit = item.get('title', 'Vídeo')
+                if total > 1:
+                    wx.CallAfter(self.set_status, f"Extrayendo transcripción [{idx}/{total}]: {tit}...", 0, False)
+                    wx.CallAfter(self.lbl_progreso_detalle.SetLabel, f"Extrayendo [{idx}/{total}]: {tit}...")
+                try:
+                    ruta = self.downloader.descargar_transcripcion(
+                        item,
+                        destino_dir=destino,
+                        idioma=idioma,
+                        con_marcas=con_marcas
+                    )
+                    descargadas.append((tit, ruta))
+                except Exception as e:
+                    errores.append((tit, str(e)))
+
+            def _finalizar():
+                self.detener_sonido_espera()
+                self.btn_descargar.Enable(True)
+                self.btn_buscar.Enable(True)
+                self.actualizar_estados_interfaz()
+
+                if descargadas:
+                    sound_manager.play_sound('download_finished')
+                    if len(descargadas) == 1:
+                        tit, ruta = descargadas[0]
+                        nombre_arch = os.path.basename(ruta)
+                        anuncio = f"Transcripción descargada con éxito: {nombre_arch}"
+                        self.set_status(anuncio, field=0, announce=True)
+                        res = wx.MessageBox(
+                            f"Se ha descargado la transcripción con éxito:\n\n{nombre_arch}\n\n¿Deseas abrir el archivo de texto ahora?",
+                            "Transcripción completada",
+                            wx.YES_NO | wx.ICON_QUESTION,
+                            self
+                        )
+                        if res == wx.YES:
+                            try:
+                                os.startfile(ruta)
+                            except Exception as ex:
+                                wx.MessageBox(f"No se pudo abrir el archivo:\n{ex}", "Error", wx.OK | wx.ICON_ERROR, self)
+                    else:
+                        anuncio = f"Se han descargado {len(descargadas)} transcripciones con éxito."
+                        self.set_status(anuncio, field=0, announce=True)
+                        res = wx.MessageBox(
+                            f"Se han descargado {len(descargadas)} transcripciones en la carpeta:\n{destino}\n\n¿Deseas abrir la carpeta ahora?",
+                            "Descargas completadas",
+                            wx.YES_NO | wx.ICON_QUESTION,
+                            self
+                        )
+                        if res == wx.YES:
+                            self.on_abrir_carpeta(None)
+
+                if errores and not descargadas:
+                    sound_manager.play_sound('error')
+                    err_msg = errores[0][1]
+                    self.set_status("No se pudo obtener la transcripción.", field=0, announce=True)
+                    wx.MessageBox(
+                        f"No se pudo obtener la transcripción del vídeo:\n\n{err_msg}",
+                        "Transcripción no disponible",
+                        wx.OK | wx.ICON_INFORMATION,
+                        self
+                    )
+                elif errores and descargadas:
+                    err_detalles = "\n".join(f"• {t}: {e}" for t, e in errores)
+                    wx.MessageBox(
+                        f"Se descargaron {len(descargadas)} transcripciones, pero ocurrieron errores en {len(errores)}:\n\n{err_detalles}",
+                        "Aviso",
+                        wx.OK | wx.ICON_WARNING,
+                        self
+                    )
+
+            wx.CallAfter(_finalizar)
+
+        threading.Thread(target=_worker, daemon=True).start()

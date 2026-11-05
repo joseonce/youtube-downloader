@@ -21,6 +21,8 @@ DEFAULT_CONFIG = {
     'aleatorio_reproductor': False,
     'reproducir_con_video': True,
     'velocidad_reproduccion': 1.0,
+    'reproductor_ventana_independiente': True,
+    'cerrar_reproductor_al_finalizar': False,
     'audio_output_device': '',      # Identificador GUID de dispositivo libvlc ('', o {0.0.0...})
     'audio_output_device_name': '', # Nombre descriptivo del dispositivo de salida
     'abrir_carpeta_al_terminar': False,
@@ -28,9 +30,8 @@ DEFAULT_CONFIG = {
     'confirmar_eliminar_favorito': True,
     'sonido_espera_descarga': True,  # Sonido de espera periódico durante la descarga
     'modo_locuciones': 'auto',       # 'auto' (solo con lector activo), 'siempre', 'desactivado'
-    'cookie_source': 'none',        # 'none', 'browser', 'file'
-    'cookie_browser': 'firefox',    # 'firefox', 'chrome', 'edge', 'brave', 'opera', 'vivaldi'
-    'cookie_file': ''               # ruta a cookies.txt
+    'metodo_extraccion_ytdlp': 'rapido', # 'rapido', 'extendido', 'default'
+    'ultimo_check_ytdlp': 0         # Timestamp del último chequeo silencioso
 }
 
 ENGINES_MAP = {
@@ -46,6 +47,47 @@ FORMATOS_MAP = {
     2: 'audio_mp3_320',
     3: 'audio_m4a'
 }
+
+METODOS_EXTRACCION = {
+    'rapido': {
+        'id': 'rapido',
+        'nombre': 'Rápido / Estándar (Android, iOS, Web - Recomendado)',
+        'extractor_args': 'youtube:player_client=android,ios,web',
+        'clients_list': ['android', 'ios', 'web'],
+    },
+    'extendido': {
+        'id': 'extendido',
+        'nombre': 'Compatibilidad extendida (VisionOS, TV - directos finalizados)',
+        'extractor_args': 'youtube:player_client=android,web,ios,visionos,tv',
+        'clients_list': ['android', 'web', 'ios', 'visionos', 'tv'],
+    },
+    'default': {
+        'id': 'default',
+        'nombre': 'Predeterminado de yt-dlp (sin restricciones)',
+        'extractor_args': None,
+        'clients_list': None,
+    }
+}
+
+METODOS_EXTRACCION_LIST = ['rapido', 'extendido', 'default']
+
+
+def get_ytdlp_extractor_args(override=None):
+    """Retorna el argumento --extractor-args según la configuración o un override explícito."""
+    if override and override in METODOS_EXTRACCION:
+        return METODOS_EXTRACCION[override]['extractor_args']
+    cfg = cargar_configuracion()
+    metodo = cfg.get('metodo_extraccion_ytdlp', 'rapido')
+    return METODOS_EXTRACCION.get(metodo, METODOS_EXTRACCION['rapido'])['extractor_args']
+
+
+def get_ytdlp_clients_list(override=None):
+    """Retorna la lista de clientes para la librería yt_dlp según la configuración o un override explícito."""
+    if override and override in METODOS_EXTRACCION:
+        return METODOS_EXTRACCION[override]['clients_list']
+    cfg = cargar_configuracion()
+    metodo = cfg.get('metodo_extraccion_ytdlp', 'rapido')
+    return METODOS_EXTRACCION.get(metodo, METODOS_EXTRACCION['rapido'])['clients_list']
 
 
 
@@ -114,6 +156,10 @@ def get_external_ytdlp_exe():
     custom_exe = os.path.join(base_appdata, 'YouTubeDownloader', 'bin', 'yt-dlp.exe')
     if os.path.isfile(custom_exe):
         return custom_exe
+
+    appdata_exe = os.path.join(base_appdata, 'YouTubeDownloader', 'yt-dlp.exe')
+    if os.path.isfile(appdata_exe):
+        return appdata_exe
 
     sys_exe = shutil.which('yt-dlp') or shutil.which('yt-dlp.exe')
     if sys_exe and os.path.isfile(sys_exe):
@@ -226,123 +272,10 @@ def guardar_configuracion(config_dict):
 
 def get_cookie_args(cfg=None):
     """Retorna los argumentos de línea de comandos para cookies en yt-dlp.exe."""
-    if cfg is None:
-        cfg = cargar_configuracion()
-    src = cfg.get('cookie_source', 'none')
-    if src == 'browser':
-        b = cfg.get('cookie_browser', 'firefox').strip().lower()
-        if b:
-            return ['--cookies-from-browser', b]
-    elif src == 'file':
-        f = cfg.get('cookie_file', '').strip()
-        if f and os.path.isfile(f):
-            return ['--cookies', f]
     return []
 
 
 def get_cookie_ydl_opts(cfg=None):
     """Retorna opciones de cookies para la API python de yt-dlp."""
-    if cfg is None:
-        cfg = cargar_configuracion()
-    src = cfg.get('cookie_source', 'none')
-    if src == 'browser':
-        b = cfg.get('cookie_browser', 'firefox').strip().lower()
-        if b:
-            return {'cookiesfrombrowser': (b,)}
-    elif src == 'file':
-        f = cfg.get('cookie_file', '').strip()
-        if f and os.path.isfile(f):
-            return {'cookiefile': f}
     return {}
 
-
-def probar_conexion_sesion(cfg=None):
-    """
-    Comprueba si la sesión configurada (navegador o archivo cookies.txt) tiene acceso autenticado a YouTube.
-    Retorna una tupla (éxito: bool, mensaje: str).
-    """
-    if cfg is None:
-        cfg = cargar_configuracion()
-    src = cfg.get('cookie_source', 'none')
-    if src == 'none':
-        return False, "La sesión está desactivada. Selecciona un navegador o archivo cookies.txt."
-
-    if src == 'file':
-        cfile = cfg.get('cookie_file', '').strip()
-        if not cfile:
-            return False, "No has seleccionado ningún archivo cookies.txt."
-        if not os.path.isfile(cfile):
-            return False, f"El archivo indicado no existe: {cfile}"
-
-    cargs = get_cookie_args(cfg)
-    if not cargs:
-        return False, "No se pudieron generar los parámetros de cookies."
-
-    custom_exe = get_external_ytdlp_exe()
-    test_url = "https://www.youtube.com/feed/playlists"
-
-    if custom_exe:
-        cmd = [
-            custom_exe,
-            test_url,
-            "--dump-single-json",
-            "--flat-playlist",
-            "--no-download",
-            "--quiet",
-            "--playlist-items", "1-1"
-        ] + cargs
-        try:
-            res = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                timeout=25,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-            )
-            if res.returncode == 0:
-                return True, "¡Sesión conectada con éxito! Se tiene acceso a tus listas e historial de YouTube."
-
-            stderr = res.stderr or ""
-            if "Failed to decrypt with DPAPI" in stderr or "DPAPI" in stderr:
-                return False, (
-                    "Bloqueo de seguridad de Windows: El navegador seleccionado tiene activada la protección App-Bound Encryption "
-                    "que impide a programas externos leer sus cookies directamente.\n\n"
-                    "Solución recomendada:\n"
-                    "1. Exporta tus cookies de YouTube a un archivo cookies.txt usando una extensión de tu navegador "
-                    "(por ejemplo, 'Get cookies.txt LOCALLY' o 'Cookie-Editor').\n"
-                    "2. En este menú, cambia el origen a 'Archivo cookies.txt' y selecciona el archivo guardado.\n"
-                    "3. O usa Firefox como navegador, ya que no aplica el cifrado DPAPI exclusivo de Chromium."
-                )
-
-            return False, f"Error al verificar la sesión: {stderr.strip() or 'Código de salida ' + str(res.returncode)}"
-        except subprocess.TimeoutExpired:
-            return False, "Tiempo de espera agotado al verificar la sesión. Comprueba tu conexión a Internet."
-        except Exception as e:
-            return False, f"Error al ejecutar yt-dlp para verificar la sesión: {e}"
-
-    try:
-        import yt_dlp
-    except ImportError:
-        yt_dlp = None
-
-    if yt_dlp:
-        ydl_opts = {
-            'quiet': True,
-            'extract_flat': True,
-            'playlist_items': '1',
-            'skip_download': True
-        }
-        ydl_opts.update(get_cookie_ydl_opts(cfg))
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.extract_info(test_url, download=False)
-            return True, "¡Sesión conectada con éxito! Se tiene acceso a tus listas e historial de YouTube."
-        except Exception as e:
-            err_str = str(e)
-            if "DPAPI" in err_str:
-                return False, "Bloqueo de seguridad de Windows (DPAPI). Usa un archivo cookies.txt o Firefox."
-            return False, f"Error al verificar la sesión: {err_str}"
-
-    return False, "No se encontró el ejecutable yt-dlp para verificar la sesión."

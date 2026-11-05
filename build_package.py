@@ -14,7 +14,11 @@ def main():
         dst = os.path.join(dist_dir, folder)
         if os.path.exists(src):
             os.makedirs(dst, exist_ok=True)
-            shutil.copytree(src, dst, dirs_exist_ok=True)
+            if folder == 'resources':
+                # No copiar la carpeta obsoleta vlc ni duplicados de libmpv
+                shutil.copytree(src, dst, dirs_exist_ok=True, ignore=shutil.ignore_patterns('vlc', 'libmpv-2.dll'))
+            else:
+                shutil.copytree(src, dst, dirs_exist_ok=True)
             print(f"Sincronizado: {folder} -> dist/{folder}")
 
     for file_name in ['ultimos_cambios.txt', 'CHANGELOG.md', 'version.json']:
@@ -27,7 +31,7 @@ def main():
     if os.path.exists(zip_path):
         os.remove(zip_path)
 
-    print("Comprimiendo en YouTubeDownloader.zip (incluyendo bin [sin yt-dlp], docs, resources)...")
+    print("Comprimiendo en YouTubeDownloader.zip (sin yt-dlp, incluyendo bin, docs, resources)...")
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         for root, _, files in os.walk(dist_dir):
             for f in files:
@@ -37,8 +41,14 @@ def main():
                 # Excluir la carpeta config del paquete comprimido para no sobreescribir datos del usuario
                 if 'config' in parts:
                     continue
-                # Excluir yt-dlp para que la app solicite descargar siempre la versión más reciente al usuario
+                # Excluir la carpeta obsoleta vlc (migrado a libmpv)
+                if 'vlc' in parts:
+                    continue
+                # Excluir binario de yt-dlp para mantener el paquete ligero (se descarga automáticamente al inicio si falta)
                 if f.lower().startswith('yt-dlp'):
+                    continue
+                # Excluir duplicados redundantes de la biblioteca mpv
+                if f.lower() == 'libmpv-2.dll':
                     continue
                 arc_name = os.path.join('YouTubeDownloader', rel_path)
                 zf.write(full_path, arc_name)

@@ -19,29 +19,26 @@ Guía rápida de referencia con todos los atajos de teclado y combinaciones de t
 | **`Ctrl + Flecha Derecha`** o **`N`** | (En el reproductor) Avanzar a la siguiente canción de la lista |
 | **`Ctrl + Flecha Izquierda`** o **`Ctrl + P`** | (En el reproductor) Retroceder a la canción anterior de la lista |
 | **`P`** | (En el reproductor) Pausar o reanudar la reproducción |
+| **`Espacio`** | (En el reproductor) Accionar o pulsar el botón enfocado en la ventana del reproductor |
 | **`S`** | (En el reproductor) Detener la reproducción |
 | **`A`** | (En el reproductor) Activar o desactivar modo aleatorio (Shuffle) |
-| **`Espacio`** | (En el reproductor) Accionar o pulsar el botón enfocado |
 | **`Flecha Arriba / Abajo`** | (En el reproductor) Subir o bajar volumen (+/- 5%) |
 | **`M`** | (En el reproductor) Silenciar o reactivar sonido (Mute) |
 | **`Ctrl + D`** | Iniciar la descarga de los elementos seleccionados (o de todos los vídeos de un canal o playlist) |
 | **`Ctrl + Shift + D`** | Descargar todos los vídeos de la lista, canal o lista de favoritos actual |
 | **`Ctrl + O`** | Abrir la carpeta de descargas en el Explorador de Windows |
 | **`Ctrl + H`** | Ver y cargar la lista de favoritos guardados |
-| **`Ctrl + Shift + H`** | Cargar el Historial de reproducciones de YouTube |
-| **`Ctrl + Shift + W`** | Cargar la lista "Ver más tarde" de YouTube |
-| **`Ctrl + Shift + Y`** | Cargar las listas de reproducción de la cuenta de YouTube |
 | **`Ctrl + Shift + P`** | Reproducir de forma continua la lista de favoritos |
 | **`Ctrl + B`** | Añadir o eliminar el elemento actual de favoritos |
 | **`Ctrl + M`** | Cambiar o mover los elementos seleccionados (o el del cursor) a otra lista de favoritos |
-| **`Supr`** | Eliminar el elemento seleccionado de favoritos (con confirmación según preferencias) |
+| **`Supr`** | Eliminar el elemento seleccionado de favoritos, o la lista de favoritos temática si está vacía (con confirmación según preferencias) |
 | **`Ctrl + C`** | Copiar el enlace del elemento seleccionado al portapapeles |
 | **`Ctrl + U`** | Comprobar y actualizar yt-dlp a la versión Nightly |
 | **`Ctrl + Shift + U`** | Comprobar actualizaciones de la aplicación en buscaapps.com |
 | **`Ctrl + ,`** o **`F2`** | Abrir la ventana de Preferencias y Opciones |
 | **`F1`** | Abrir el Manual de Usuario completo en el navegador |
 | **`Escape`** | Retroceder nivel a nivel en la navegación jerárquica (vídeos -> lista -> canal -> favoritos/búsqueda) o limpiar resultados (y cerrar diálogos) |
-| **`Alt + Flecha Izquierda`** | Retroceder al nivel de navegación previo en la lista de resultados |
+| **`Alt + Flecha Izquierda`** | Retroceder al nivel de navegación previo en la lista de resultados (equivalente a Escape en la lista) |
 | **`Alt + F4`** | Salir de la aplicación |
 
 ---
@@ -78,19 +75,18 @@ Guía rápida de referencia con todos los atajos de teclado y combinaciones de t
 
 ---
 
-## 4. Controles Dentro del Reproductor Multimedia (VLC)
+## 4. Controles Dentro del Reproductor Multimedia
 
 | Tecla | Acción |
 | :--- | :--- |
 | **`P`** | Pausar o reanudar la reproducción |
 | **`S`** | Detener la reproducción |
 | **`A`** | Alternar modo aleatorio (activar / desactivar Shuffle) |
-| **`Espacio`** | Pulsar / accionar el botón enfocado en la ventana del reproductor |
 | **`Flecha Arriba`** | Subir volumen (+5%) |
 | **`Flecha Abajo`** | Bajar volumen (-5%) |
 | **`M`** | Silenciar o reactivar sonido (Mute) |
 | **`Ctrl + Flecha Derecha`** o **`N`** | Avanzar a la siguiente canción / pista de la lista en reproducción |
-| **`Ctrl + Flecha Izquierda`** | Retroceder a la canción / pista anterior de la lista en reproducción |
+| **`Ctrl + Flecha Izquierda`** o **`Ctrl + P`** | Retroceder a la canción / pista anterior de la lista en reproducción |
 | **`Ctrl + Shift + C`** o **`Ctrl + C`** | Copiar el enlace directo del vídeo en reproducción al portapapeles |
 | **`B`** o **`F`** | Añadir o eliminar pista actual de Favoritos |
 | **`Supr`** | Eliminar la pista en reproducción de Favoritos (con confirmación configurable) |

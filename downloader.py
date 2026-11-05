@@ -11,6 +11,7 @@ import threading
 import time
 import unicodedata
 import urllib.parse
+import urllib.request
 
 from config_manager import (
     DEFAULT_CONFIG,
@@ -27,9 +28,6 @@ from config_manager import (
     abrir_atajos_teclado,
     cargar_configuracion,
     guardar_configuracion,
-    get_cookie_args,
-    get_cookie_ydl_opts,
-    probar_conexion_sesion
 )
 
 from favorites_manager import (
@@ -71,9 +69,18 @@ from streaming import (
 )
 
 
-class YouTubeDownloader:
+
+from downloader_search import (
+    YouTubeSearchMixin,
+    get_ytdlp_extractor_args,
+    get_ytdlp_clients_list
+)
+
+
+class YouTubeDownloader(YouTubeSearchMixin):
     def __init__(self):
         self._cancel_requested = False
+        self._metodo_override = None
         self._active_process = None
         self.last_container_title = ""
         self.config = cargar_configuracion()
@@ -100,541 +107,16 @@ class YouTubeDownloader:
     def is_cancelled(self):
         return self._cancel_requested
 
-    def _procesar_entries(self, entries, max_results=50, is_playlist_list=False, is_channel_list=False, query='', start_index=1, parent_channel_url=''):
-        """
-        Convierte una lista de entradas de yt-dlp a nuestro formato estándar,
-        respetando fielmente la ordenación y criterios naturales por defecto de yt-dlp.
-        """
-        if not entries:
-            return []
-
-        resultados = []
-        for idx, entry in enumerate(entries[:max_results], start_index):
-            if not entry:
-                continue
-            item_id = entry.get('id', '')
-            titulo = limpiar_extension_titulo(entry.get('title', 'Sin título'))
-            canal = entry.get('uploader') or entry.get('channel') or entry.get('channel_title') or entry.get('creator') or 'Desconocido'
-            
-            entry_url = str(entry.get('url', ''))
-            entry_id = str(entry.get('id', ''))
-            web_url = str(entry.get('webpage_url') or entry.get('original_url') or entry_url)
-            entry_type = entry.get('_type', '')
-
-            es_video = (entry_type == 'video') or ('watch?v=' in web_url) or ('/shorts/' in web_url) or ('watch?v=' in entry_url)
-
-            es_canal = (not es_video) and (is_channel_list or (
-                entry_type == 'channel' or
-                ('/channel/' in entry_url and 'watch' not in entry_url) or
-                ('/@' in entry_url and 'watch' not in entry_url) or
-                ('/c/' in entry_url and 'watch' not in entry_url) or
-                ('/user/' in entry_url and 'watch' not in entry_url)
-            ))
-            
-            es_playlist = (not es_video) and (not es_canal) and (
-                is_playlist_list or
-                entry_type == 'playlist' or
-                entry.get('playlist_count') is not None or
-                'playlist?list=' in entry_url or
-                '/playlist' in entry_url or
-                (entry_id.startswith('PL') and 'watch' not in entry_url)
-            )
-
-            if es_canal:
-                titulo = entry.get('title') or entry.get('channel') or entry.get('uploader') or 'Canal'
-                canal = entry.get('channel') or entry.get('uploader') or entry.get('uploader_id') or 'Canal'
-                subs = entry.get('channel_follower_count') or entry.get('subscriber_count')
-                if subs is not None:
-                    try:
-                        subs_num = int(subs)
-                        if subs_num >= 1_000_000:
-                            subs_str = f"{subs_num / 1_000_000:.1f}M suscriptores".replace('.0M', 'M')
-                        elif subs_num >= 1_000:
-                            subs_str = f"{subs_num / 1_000:.1f}K suscriptores".replace('.0K', 'K')
-                        else:
-                            subs_str = f"{subs_num} suscriptores"
-                    except Exception:
-                        subs_str = f"{subs} suscriptores"
-                else:
-                    subs_str = "--"
-
-                # Comprobar si yt-dlp proporciona el número de vídeos del canal
-                vid_count = (
-                    entry.get('video_count') or 
-                    entry.get('item_count')
-                )
-                if vid_count:
-                    try:
-                        vid_count_num = int(vid_count)
-                        vids_label = f"{vid_count_num} vídeos"
-                    except Exception:
-                        vids_label = f"{vid_count} vídeos"
-                    duracion_str = vids_label
-                    if subs_str != "--":
-                        views_str = f"{subs_str} • {vids_label}"
-                    else:
-                        views_str = vids_label
-                else:
-                    duracion_str = "Canal"
-                    views_str = subs_str
-
-                duracion_sec = 0
-                url = entry.get('channel_url') or entry.get('uploader_url') or (f"https://www.youtube.com/channel/{item_id}" if item_id and not item_id.startswith('http') else entry_url)
-                tipo_item = 'channel'
-                vc = subs
-                channel_url = url
-            elif es_playlist:
-                item_count = entry.get('playlist_count') or entry.get('item_count')
-                duracion_str = f"{item_count} vídeos" if item_count else "Lista de reproducción"
-                views_str = f"{item_count} vídeos" if item_count else "--"
-                duracion_sec = 0
-                url = entry.get('webpage_url') or (f"https://www.youtube.com/playlist?list={item_id}" if item_id and not item_id.startswith('http') else entry_url)
-                tipo_item = 'playlist'
-                vc = None
-                channel_url = (
-                    entry.get('uploader_url') or
-                    entry.get('channel_url') or
-                    (f"https://www.youtube.com/channel/{entry.get('channel_id')}" if entry.get('channel_id') else '') or
-                    (f"https://www.youtube.com/{entry.get('uploader_id')}" if entry.get('uploader_id') and str(entry.get('uploader_id')).startswith('@') else '') or
-                    parent_channel_url or ''
-                )
-            else:
-                duracion_sec = entry.get('duration')
-                duracion_str = formatear_duracion(duracion_sec)
-                url = entry.get('webpage_url') or entry.get('original_url') or (f"https://www.youtube.com/watch?v={item_id}" if item_id and not item_id.startswith('http') else entry_url)
-                tipo_item = 'video'
-                vc = entry.get('view_count')
-                if vc is None:
-                    vc = entry.get('views')
-                views_str = formatear_visitas(vc)
-                channel_url = (
-                    entry.get('uploader_url') or
-                    entry.get('channel_url') or
-                    (f"https://www.youtube.com/channel/{entry.get('channel_id')}" if entry.get('channel_id') else '') or
-                    (f"https://www.youtube.com/{entry.get('uploader_id')}" if entry.get('uploader_id') and str(entry.get('uploader_id')).startswith('@') else '') or
-                    parent_channel_url or ''
-                )
-
-            resultados.append({
-                'index': idx,
-                'id': item_id or str(idx),
-                'title': titulo,
-                'channel': canal,
-                'channel_url': channel_url,
-                'duration_seconds': duracion_sec,
-                'duration': duracion_str,
-                'views': views_str,
-                'view_count': vc,
-                'url': url,
-                'description': entry.get('description') or '',
-                'is_playlist': (tipo_item == 'playlist'),
-                'is_channel': (tipo_item == 'channel'),
-                'tipo_item': tipo_item,
-                'selected': False,
-            })
-        return resultados
-
-    def extraer_info_contenedor(self, target_url: str, tipo_contenedor: str) -> list:
-        """
-        Extrae la información y metadatos de un contenedor (canal o lista de reproducción)
-        como un único elemento de resultado, sin extraer su contenido interno de vídeos.
-        tipo_contenedor puede ser 'channel' o 'playlist'.
-        """
-        self._cancel_requested = False
-        target_url = target_url.strip()
-        if not target_url:
-            return []
-
-        if target_url.startswith('@'):
-            target_url = f"https://www.youtube.com/{target_url}"
-
-        is_channel = (tipo_contenedor == 'channel')
-        is_playlist = (tipo_contenedor == 'playlist')
-
-        clean_url = target_url
-        if is_channel:
-            clean_url = re.sub(r'/(?:videos|playlists|featured|shorts|community|podcasts)$', '', target_url.rstrip('/'))
-        elif is_playlist and 'list=' in clean_url and 'playlist?list=' not in clean_url:
-            m = re.search(r'[?&]list=([a-zA-Z0-9_-]+)', clean_url)
-            if m:
-                clean_url = f"https://www.youtube.com/playlist?list={m.group(1)}"
-
-        custom_exe = get_external_ytdlp_exe()
-        cookie_args = get_cookie_args()
-        last_error = ""
-
-        if custom_exe:
-            intentos_cookies = [cookie_args, []] if cookie_args else [[]]
-            for c_args in intentos_cookies:
-                try:
-                    cmd = [
-                        custom_exe,
-                        clean_url,
-                        "--dump-single-json",
-                        "--flat-playlist",
-                        "--no-download",
-                        "--no-warnings",
-                        "--playlist-items", "0",
-                        "--extractor-args", "youtube:player_client=android,ios,web"
-                    ] + c_args
-                    res = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        encoding='utf-8',
-                        errors='replace',
-                        timeout=35,
-                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-                    )
-                    if res.returncode == 0 and res.stdout.strip():
-                        info = json.loads(res.stdout)
-                        self.last_container_title = info.get('title') or ''
-                        if is_channel and not info.get('channel_url') and not info.get('uploader_url'):
-                            info['channel_url'] = clean_url
-                        if is_playlist and not info.get('webpage_url'):
-                            info['webpage_url'] = clean_url
-                        entries = [info]
-                        return self._procesar_entries(entries, max_results=1, is_channel_list=is_channel, is_playlist_list=is_playlist, query=target_url)
-                    if res.stderr and res.stderr.strip():
-                        last_error = res.stderr.strip()
-                except Exception as e:
-                    last_error = str(e)
-
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': 'in_playlist',
-            'skip_download': True,
-            'playlist_items': '0',
-            'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}}
-        }
-        ydl_opts.update(get_cookie_ydl_opts())
-
-        yt_dlp = _ensure_ytdlp()
-        if yt_dlp:
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(clean_url, download=False)
-                    self.last_container_title = info.get('title') or ''
-                    if is_channel and not info.get('channel_url') and not info.get('uploader_url'):
-                        info['channel_url'] = clean_url
-                    if is_playlist and not info.get('webpage_url'):
-                        info['webpage_url'] = clean_url
-                    entries = [info]
-                    return self._procesar_entries(entries, max_results=1, is_channel_list=is_channel, is_playlist_list=is_playlist, query=target_url)
-            except Exception as e:
-                last_error = str(e)
-
-        if not custom_exe and not yt_dlp:
-            raise RuntimeError("No se encuentra la librería necesaria (yt-dlp.exe) para la ejecución del programa.")
-
-        if last_error:
-            raise RuntimeError(last_error)
-        return []
-
-    def buscar(self, query: str, max_results: int = 25, engine: str = 'ytsearch', search_type: str = 'video', start_index: int = 1):
-        """
-        Realiza una búsqueda de vídeos, canales o listas de reproducción en la plataforma seleccionada o analiza una URL directa.
-        Soporta motores de búsqueda (ytsearch, scsearch, bcsearch, bilisearch, gvsearch) o URLs directas.
-        search_type puede ser 'video', 'channel' o 'playlist'.
-        start_index permite paginar los resultados a partir de una posición inicial (1-indexed).
-        """
-        self._cancel_requested = False
-        query = query.strip()
-        if not query:
-            return []
-
-        tipo_url = identificar_tipo_url(query)
-        if tipo_url == 'canal':
-            return self.extraer_info_contenedor(query, tipo_contenedor='channel')
-        elif tipo_url == 'playlist':
-            return self.extraer_info_contenedor(query, tipo_contenedor='playlist')
-
-        is_channel_search = False
-        is_playlist_search = False
-
-        end_index = max(start_index, start_index + max_results - 1)
-
-        # Determinar el término de consulta final
-        if query.startswith('http://') or query.startswith('https://'):
-            search_query = query
-        else:
-            if engine == 'ytsearch':
-                if search_type == 'channel':
-                    search_query = f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(query)}&sp=EgIQAg%253D%253D"
-                    is_channel_search = True
-                elif search_type == 'playlist':
-                    search_query = f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(query)}&sp=EgIQAw%253D%253D"
-                    is_playlist_search = True
-                else:
-                    # Búsqueda estándar de vídeos por defecto en yt-dlp
-                    search_query = f"ytsearch{end_index}:{query}"
-            else:
-                search_prefix = engine if engine.endswith('search') else f"{engine}search"
-                search_query = f"{search_prefix}{end_index}:{query}"
-
-        # Si existe un yt-dlp.exe externo actualizado, se usa dinámicamente
-        custom_exe = get_external_ytdlp_exe()
-        cookie_args = get_cookie_args()
-        last_error = ""
-        if custom_exe:
-            # Si hay cookies configuradas, probamos con cookies y si falla probamos sin ellas como fallback
-            intentos_cookies = [cookie_args, []] if cookie_args else [[]]
-            for c_args in intentos_cookies:
-                try:
-                    cmd = [
-                        custom_exe,
-                        search_query,
-                        "--dump-single-json",
-                        "--flat-playlist",
-                        "--no-download",
-                        "--no-warnings",
-                        "--playlist-items", f"{start_index}-{end_index}",
-                        "--extractor-args", "youtube:player_client=android,ios,web"
-                    ] + c_args
-                    res = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        encoding='utf-8',
-                        errors='replace',
-                        timeout=35,
-                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-                    )
-                    if res.returncode == 0 and res.stdout.strip():
-                        info = json.loads(res.stdout)
-                        entries = info.get('entries')
-                        if entries is None:
-                            entries = [info] if info.get('title') else []
-                        parent_ch = info.get('uploader_url') or info.get('channel_url') or ''
-                        return self._procesar_entries(
-                            entries,
-                            max_results=max_results,
-                            is_playlist_list=is_playlist_search,
-                            is_channel_list=is_channel_search,
-                            query=query,
-                            start_index=start_index,
-                            parent_channel_url=parent_ch
-                        )
-                    if res.stderr and res.stderr.strip():
-                        last_error = res.stderr.strip()
-                except Exception as e:
-                    last_error = str(e)
-
-        # Uso de la librería en proceso (si estuviera disponible en modo desarrollo)
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': 'in_playlist',
-            'skip_download': True,
-            'playlist_items': f'{start_index}-{end_index}',
-            'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}}
-        }
-        ydl_opts.update(get_cookie_ydl_opts())
-
-        yt_dlp = _ensure_ytdlp()
-        if yt_dlp:
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(search_query, download=False)
-                entries = info.get('entries')
-                if entries is None:
-                    entries = [info] if info.get('title') else []
-
-                parent_ch = info.get('uploader_url') or info.get('channel_url') or ''
-                return self._procesar_entries(
-                    entries,
-                    max_results=max_results,
-                    is_playlist_list=is_playlist_search,
-                    is_channel_list=is_channel_search,
-                    query=query,
-                    start_index=start_index,
-                    parent_channel_url=parent_ch
-                )
-            except Exception as e:
-                last_error = str(e)
-
-        if not custom_exe and not yt_dlp:
-            raise RuntimeError("No se encuentra la librería necesaria (yt-dlp.exe) para la ejecución del programa.")
-
-        if last_error:
-            raise RuntimeError(last_error)
-        return []
-
-    def buscar_canal_videos(self, channel_url: str, max_results: int = 25, start_index: int = 1):
-        """Extrae la lista de vídeos subidos por un canal."""
-        self._cancel_requested = False
-        channel_url = channel_url.strip()
-        if channel_url.startswith('@'):
-            channel_url = f"https://www.youtube.com/{channel_url}"
-        
-        base = channel_url.rstrip('/')
-        base = re.sub(r'/(?:videos|playlists|featured|shorts|community|podcasts)$', '', base)
-        url_final = f"{base}/videos"
-
-        # 1. Intentamos obtener la pestaña '/videos' (lo habitual para creadores de contenido estándar)
-        try:
-            res = self._extraer_flat_url(url_final, max_results=max_results, is_playlist_list=False, query=channel_url, start_index=start_index)
-            if res:
-                return res
-        except Exception as e:
-            # Si el canal no tiene pestaña '/videos' (canales temáticos de música tipo 'Topic', perfiles generados automáticamente, etc.),
-            # o falla al pedir /videos, reintentamos con la URL base del canal donde yt-dlp redirige a las pistas/subidas.
-            try:
-                return self._extraer_flat_url(base, max_results=max_results, is_playlist_list=False, query=channel_url, start_index=start_index)
-            except Exception:
-                raise e
-
-        # Si url_final no arrojó excepción pero devolvió lista vacía en la primera página,
-        # probamos con la URL base del canal
-        if start_index == 1:
-            try:
-                res_base = self._extraer_flat_url(base, max_results=max_results, is_playlist_list=False, query=channel_url, start_index=start_index)
-                if res_base:
-                    return res_base
-            except Exception:
-                pass
-
-        return []
-
-    def buscar_canal_playlists(self, channel_url: str, max_results: int = 25, start_index: int = 1):
-        """Extrae las listas de reproducción públicas de un canal."""
-        self._cancel_requested = False
-        channel_url = channel_url.strip()
-        if channel_url.startswith('@'):
-            channel_url = f"https://www.youtube.com/{channel_url}"
-        
-        base = channel_url.rstrip('/')
-        base = re.sub(r'/(?:videos|playlists|featured|shorts|community|podcasts)$', '', base)
-        url_final = f"{base}/playlists"
-
-        try:
-            return self._extraer_flat_url(url_final, max_results=max_results, is_playlist_list=True, query=channel_url, start_index=start_index)
-        except Exception as e:
-            err_msg = str(e).lower()
-            if "does not have a playlists tab" in err_msg or "no tiene" in err_msg:
-                return []
-            raise
-
-    def buscar_playlist_videos(self, playlist_url: str, max_results: int = 100, start_index: int = 1):
-        """Extrae los vídeos de una lista de reproducción."""
-        self._cancel_requested = False
-        return self._extraer_flat_url(playlist_url.strip(), max_results=max_results, is_playlist_list=False, query=playlist_url, start_index=start_index)
-
-    def _extraer_flat_url(self, target_url: str, max_results: int = 50, is_playlist_list: bool = False, query: str = '', start_index: int = 1):
-        """Método unificado para extraer entradas usando CLI externa o librería interna con paginación."""
-        end_index = max(start_index, start_index + max_results - 1)
-        custom_exe = get_external_ytdlp_exe()
-        cookie_args = get_cookie_args()
-        last_error = ""
-        is_private_only = any(x in target_url for x in ['/history', '/feed/playlists', 'list=WL'])
-        if custom_exe:
-            intentos_cookies = [cookie_args, []] if (cookie_args and not is_private_only) else [cookie_args]
-            for c_args in intentos_cookies:
-                try:
-                    cmd = [
-                        custom_exe,
-                        target_url,
-                        "--dump-single-json",
-                        "--flat-playlist",
-                        "--no-download",
-                        "--no-warnings",
-                        "--playlist-items", f"{start_index}-{end_index}",
-                        "--extractor-args", "youtube:player_client=android,ios,web"
-                    ] + c_args
-                    res = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        encoding='utf-8',
-                        errors='replace',
-                        timeout=45,
-                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-                    )
-                    if res.returncode == 0 and res.stdout.strip():
-                        info = json.loads(res.stdout)
-                        self.last_container_title = info.get('title') or ''
-                        entries = list(info.get('entries') or [])
-                        if not entries and info.get('title') and not is_playlist_list:
-                            entries = [info]
-                        parent_ch = info.get('uploader_url') or info.get('channel_url') or ''
-                        return self._procesar_entries(entries, max_results=max_results, is_playlist_list=is_playlist_list, query=query, start_index=start_index, parent_channel_url=parent_ch)
-                    if res.stderr and res.stderr.strip():
-                        last_error = res.stderr.strip()
-                except Exception as e:
-                    last_error = str(e)
-
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': True,
-            'skip_download': True,
-            'playlist_items': f'{start_index}-{end_index}',
-            'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}}
-        }
-        ydl_opts.update(get_cookie_ydl_opts())
-
-        yt_dlp = _ensure_ytdlp()
-        if yt_dlp:
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(target_url, download=False)
-                    self.last_container_title = info.get('title') or ''
-                    entries = list(info.get('entries') or [])
-                    if not entries and info.get('title') and not is_playlist_list:
-                        entries = [info]
-                    parent_ch = info.get('uploader_url') or info.get('channel_url') or ''
-                    return self._procesar_entries(entries, max_results=max_results, is_playlist_list=is_playlist_list, query=query, start_index=start_index, parent_channel_url=parent_ch)
-            except Exception as e:
-                last_error = str(e)
-
-        if not custom_exe and not yt_dlp:
-            raise RuntimeError("No se encuentra la librería necesaria (yt-dlp.exe) para la ejecución del programa.")
-
-        if last_error:
-            raise RuntimeError(last_error)
-        return []
-
-    def buscar_historial(self, max_results: int = 50, start_index: int = 1):
-        """Extrae las entradas del Historial de reproducciones de YouTube del usuario."""
-        self._cancel_requested = False
-        return self._extraer_flat_url(
-            "https://www.youtube.com/feed/history",
-            max_results=max_results,
-            is_playlist_list=False,
-            query="Historial de YouTube",
-            start_index=start_index
-        )
-
-    def buscar_ver_mas_tarde(self, max_results: int = 50, start_index: int = 1):
-        """Extrae las entradas de la lista 'Ver más tarde' del usuario."""
-        self._cancel_requested = False
-        return self._extraer_flat_url(
-            "https://www.youtube.com/playlist?list=WL",
-            max_results=max_results,
-            is_playlist_list=False,
-            query="Ver más tarde",
-            start_index=start_index
-        )
-
-    def buscar_mis_playlists(self, max_results: int = 50, start_index: int = 1):
-        """Extrae las listas de reproducción de la cuenta del usuario."""
-        self._cancel_requested = False
-        return self._extraer_flat_url(
-            "https://www.youtube.com/feed/playlists",
-            max_results=max_results,
-            is_playlist_list=True,
-            query="Mis listas de reproducción",
-            start_index=start_index
-        )
-
     def descargar(self, url: str, formato: str, destino: str,
-                  on_progress=None, on_finished=None, on_error=None):
+                  on_progress=None, on_finished=None, on_error=None,
+                  metodo_override=None):
         """
         Descarga un vídeo o audio de YouTube en un hilo secundario.
         Aplica inmediatamente el motor yt-dlp actualizado si existe.
         """
         self._cancel_requested = False
+        if metodo_override is not None:
+            self._metodo_override = metodo_override
 
         def _worker():
             custom_exe = get_external_ytdlp_exe()
@@ -645,15 +127,18 @@ class YouTubeDownloader:
             if custom_exe:
                 try:
                     outtmpl = os.path.join(destino, '%(title)s.%(ext)s')
+                    from config_manager import get_ytdlp_extractor_args, get_ytdlp_clients_list
+                    ext_arg = get_ytdlp_extractor_args(override=getattr(self, '_metodo_override', None))
                     base_args = [
                         custom_exe,
                         url,
                         "--output", outtmpl,
                         "--newline",
                         "--no-warnings",
-                        "--replace-in-metadata", "title", r"(?i)\.(mp4|flv|mkv|webm|avi|wmv|mov|m4v|3gp|vob|ogv|divx|mp3|m4a|aac|wav|flac|ogg|opus|wma)$", "",
-                        "--extractor-args", "youtube:player_client=android,ios,web"
+                        "--replace-in-metadata", "title", r"(?i)\.(mp4|flv|mkv|webm|avi|wmv|mov|m4v|3gp|vob|ogv|divx|mp3|m4a|aac|wav|flac|ogg|opus|wma)$", ""
                     ]
+                    if ext_arg:
+                        base_args.extend(["--extractor-args", ext_arg])
 
                     ffmpeg_dir = get_ffmpeg_dir()
                     if ffmpeg_dir:
@@ -750,29 +235,9 @@ class YouTubeDownloader:
 
                         return proc.returncode, last_output_lines, detected_file
 
-                    cookie_args = get_cookie_args(cfg)
-                    returncode = -1
-                    last_output_lines = []
-                    detected_file = ""
+                    returncode, last_output_lines, detected_file = _run_download_process([])
 
-                    # Intento 1: con cookies si están configuradas
-                    if cookie_args:
-                        returncode, last_output_lines, detected_file = _run_download_process(cookie_args)
 
-                    # Si no hay cookies o el intento con cookies falló (cookies inválidas, bloqueo o falta de JS runtime),
-                    # reintentamos automáticamente en modo estándar sin cookies
-                    if (returncode != 0 or not cookie_args) and not self._cancel_requested:
-                        if cookie_args and returncode != 0 and on_progress:
-                            on_progress({
-                                'status': 'downloading',
-                                'percent': 0.0,
-                                'speed': '',
-                                'eta': '',
-                                'downloaded': '0%',
-                                'total': 'Reintentando...',
-                                'filename': 'Reintentando sin cookies de sesión...',
-                            })
-                        returncode, last_output_lines, detected_file = _run_download_process([])
 
                     if returncode == 0:
                         if detected_file:
@@ -866,8 +331,6 @@ class YouTubeDownloader:
                     'parse_metadata': {'pre_process': [('title', r'(?i)\.(mp4|flv|mkv|webm|avi|wmv|mov|m4v|3gp|vob|ogv|divx|mp3|m4a|aac|wav|flac|ogg|opus|wma)$', '')]},
                     'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}},
                 }
-                cookie_opts = get_cookie_ydl_opts(cfg)
-                ydl_opts.update(cookie_opts)
 
                 if formato == 'audio_mp3_192':
                     ydl_opts.update({
@@ -934,14 +397,7 @@ class YouTubeDownloader:
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(url, download=True)
                 except Exception:
-                    # Si falló con cookies en la librería interna, reintentar sin cookies
-                    if cookie_opts:
-                        for k in cookie_opts:
-                            ydl_opts.pop(k, None)
-                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                            info = ydl.extract_info(url, download=True)
-                    else:
-                        raise
+                    raise
 
                 titulo = limpiar_extension_titulo(info.get('title', 'Vídeo'))
                 ext = 'mp3' if 'mp3' in formato else ('m4a' if 'm4a' in formato else ('flac' if 'flac' in formato else ('wav' if 'wav' in formato else 'mp4')))
@@ -981,124 +437,365 @@ class YouTubeDownloader:
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
 
-    def obtener_canal_url(self, target_url: str) -> str:
+    @staticmethod
+    def _limpiar_linea_transcripcion(linea: str) -> str:
         """
-        Obtiene la URL del canal al que pertenece un vídeo o playlist usando CLI externa o librería interna.
+        Limpia signos musicales ([♪♪♪], ♪, ♫), etiquetas no vocales ([Música], [Aplausos])
+        y espacios extra, preservando la marca de tiempo inicial si existe.
         """
+        if not linea:
+            return ""
+
+        m_tiempo = re.match(r'^(\[\d{1,2}:\d{2}(?::\d{2})?\])\s*', linea)
+        prefix = ""
+        texto = linea
+        if m_tiempo:
+            prefix = m_tiempo.group(1) + " "
+            texto = linea[m_tiempo.end():]
+
+        # 1. Eliminar corchetes o paréntesis que contengan notas musicales
+        texto = re.sub(r'\[[\s♪♫♩♬♭♮♯\-_.~]+\]', '', texto)
+        texto = re.sub(r'\([\s♪♫♩♬♭♮♯\-_.~]+\)', '', texto)
+        # 2. Eliminar caracteres de notas musicales sueltos
+        texto = re.sub(r'[♪♫♩♬♭♮♯]+', '', texto)
+        # 3. Eliminar etiquetas no vocales comunes
+        patron_etiquetas = (
+            r'[\[\(]\s*(?:'
+            r'm[uú]sica(?:\s+de\s+fondo)?|music(?:\s+playing)?|background\s+music|'
+            r'aplausos|applause|risas|laughter|chuckle|gasp|sigh|suspiros|'
+            r'silencio|silence|gritos|screams|acordes|canto|singing'
+            r')\s*[\]\)]'
+        )
+        texto = re.sub(patron_etiquetas, '', texto, flags=re.IGNORECASE)
+        # 4. Normalizar espacios y signos de puntuación huérfanos
+        texto = re.sub(r'\s+', ' ', texto).strip()
+        texto = re.sub(r'\s+([.,;:!?])', r'\1', texto)
+        texto = re.sub(r'^[\s,;:\-_~]+|[\s\-_~]+$', '', texto).strip()
+
+        if not texto:
+            return ""
+        return f"{prefix}{texto}" if prefix else texto
+
+    def _procesar_json3_transcripcion(self, data: dict, con_marcas: bool = False) -> str:
+        """Procesa datos de subtítulos en formato json3 y genera texto separado por líneas (con o sin marcas)."""
+        events = data.get('events', [])
+        lineas = []
+        last_clean = ""
+
+        for ev in events:
+            segs = ev.get('segs', [])
+            if not segs:
+                continue
+            texto = "".join(s.get('utf8', '') for s in segs)
+            texto = re.sub(r'[\r\n]+', ' ', texto)
+            texto = re.sub(r'\s+', ' ', texto).strip()
+            if not texto:
+                continue
+
+            limpio = self._limpiar_linea_transcripcion(texto)
+            if not limpio or limpio == last_clean:
+                continue
+
+            if con_marcas:
+                t_ms = ev.get('tStartMs', 0)
+                secs = int(t_ms / 1000)
+                mins = int(secs / 60)
+                rem_secs = secs % 60
+                hrs = int(mins / 60)
+                rem_mins = mins % 60
+
+                if hrs > 0:
+                    time_tag = f"[{hrs:02d}:{rem_mins:02d}:{rem_secs:02d}]"
+                else:
+                    time_tag = f"[{rem_mins:02d}:{rem_secs:02d}]"
+                lineas.append(f"{time_tag} {limpio}")
+            else:
+                lineas.append(limpio)
+
+            last_clean = limpio
+
+        return "\n".join(lineas)
+
+    def _procesar_vtt_transcripcion(self, content: str, con_marcas: bool = False) -> str:
+        """Procesa subtítulos en formato WebVTT y genera texto separado por líneas (con o sin marcas)."""
+        time_pattern = re.compile(r'(\d{2}:\d{2}(?::\d{2})?(?:\.\d{3})?)\s*-->\s*(\d{2}:\d{2}(?::\d{2})?(?:\.\d{3})?)')
+        blocks = re.split(r'\n\s*\n', content)
+        output_lines = []
+        last_clean = ""
+
+        for block in blocks:
+            block = block.strip()
+            if not block or block.startswith('WEBVTT') or block.startswith('Kind:') or block.startswith('Language:'):
+                continue
+
+            lines = block.splitlines()
+            time_match = None
+            text_lines = []
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                tm = time_pattern.search(line)
+                if tm:
+                    time_match = tm
+                elif not time_match:
+                    continue
+                else:
+                    cleaned = re.sub(r'<[^>]+>', '', line).strip()
+                    cleaned = re.sub(r'&nbsp;', ' ', cleaned)
+                    cleaned = re.sub(r'&#39;', "'", cleaned)
+                    cleaned = re.sub(r'&quot;', '"', cleaned)
+                    cleaned = re.sub(r'&amp;', '&', cleaned)
+                    if cleaned:
+                        text_lines.append(cleaned)
+
+            if not text_lines:
+                continue
+
+            full_block_text = " ".join(text_lines).strip()
+            # En VTT acumulativo (rolling subtitles), descartar prefijos repetidos
+            if last_clean and full_block_text.startswith(last_clean):
+                texto_segmento = full_block_text[len(last_clean):].strip()
+            else:
+                texto_segmento = full_block_text
+
+            limpio = self._limpiar_linea_transcripcion(texto_segmento)
+            if not limpio or limpio == last_clean:
+                continue
+
+            if time_match:
+                start_t = time_match.group(1).split('.')[0]
+                if start_t.startswith('00:'):
+                    start_t = start_t[3:]
+            else:
+                start_t = ""
+
+            if con_marcas:
+                output_lines.append(f"[{start_t}] {limpio}")
+            else:
+                output_lines.append(limpio)
+
+            last_clean = limpio
+
+        return "\n".join(output_lines)
+
+    def _traducir_texto_transcripcion(self, texto: str, target_lang: str) -> str:
+        """
+        Traduce el texto de transcripción al idioma destino por lotes usando el endpoint de Google Translate.
+        Preserva saltos de línea y marcas de tiempo [mm:ss].
+        """
+        if not texto or not texto.strip():
+            return texto
+
+        target_lang = target_lang.lower().strip()
+        lineas = texto.splitlines()
+        if not lineas:
+            return texto
+
+        lineas_traducidas = []
+        chunk = []
+        chunk_len = 0
+
+        def _procesar_lote(lote_lineas):
+            if not lote_lineas:
+                return []
+            raw_text = "\n".join(lote_lineas)
+            url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={target_lang}&dt=t"
+            data = urllib.parse.urlencode({'q': raw_text}).encode('utf-8')
+            req = urllib.request.Request(
+                url,
+                data=data,
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data_json = json.loads(resp.read().decode('utf-8'))
+                res_bloques = data_json[0] if data_json and isinstance(data_json, list) else []
+                traduccion = "".join(s[0] for s in res_bloques if s and isinstance(s, list) and s[0])
+                return traduccion.splitlines()
+
+        for linea in lineas:
+            if chunk_len + len(linea) > 2500 and chunk:
+                try:
+                    lineas_traducidas.extend(_procesar_lote(chunk))
+                except Exception:
+                    lineas_traducidas.extend(chunk)
+                chunk = []
+                chunk_len = 0
+            chunk.append(linea)
+            chunk_len += len(linea)
+
+        if chunk:
+            try:
+                lineas_traducidas.extend(_procesar_lote(chunk))
+            except Exception:
+                lineas_traducidas.extend(chunk)
+
+        return "\n".join(lineas_traducidas)
+
+    def extraer_transcripcion(self, url_o_id: str, idioma: str = 'orig', con_marcas: bool = False) -> str:
+        """
+        Extrae la transcripción o subtítulos de un vídeo a texto plano.
+        - idioma: 'orig' (idioma original del vídeo) o código ISO ('es', 'en', 'fr', etc.).
+        - con_marcas: True incluye marcas de tiempo [mm:ss], False texto continuo limpio separado por líneas.
+        """
+        if not url_o_id:
+            raise ValueError("URL o identificador de vídeo no válido.")
+
+        url = url_o_id.strip()
+        if not url.startswith(('http://', 'https://')):
+            url = f"https://www.youtube.com/watch?v={url}"
+
         custom_exe = get_external_ytdlp_exe()
+        info = None
+
         if custom_exe:
             try:
-                cmd = [
-                    custom_exe,
-                    target_url,
-                    "--dump-single-json",
-                    "--flat-playlist",
-                    "--no-download",
-                    "--quiet",
-                    "--no-warnings",
-                    "--playlist-items", "1",
-                    "--extractor-args", "youtube:player_client=android,ios,web"
-                ]
-                res = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    encoding='utf-8',
-                    errors='replace',
-                    timeout=30,
-                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-                )
+                cmd = [custom_exe, url, "--dump-single-json", "--skip-download", "--no-warnings"]
+                ext_arg = get_ytdlp_extractor_args()
+                if ext_arg:
+                    cmd += ["--extractor-args", ext_arg]
+                res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=20)
                 if res.returncode == 0 and res.stdout.strip():
                     info = json.loads(res.stdout)
-                    ch_url = (
-                        info.get('uploader_url') or
-                        info.get('channel_url') or
-                        (f"https://www.youtube.com/channel/{info.get('channel_id')}" if info.get('channel_id') else '') or
-                        (f"https://www.youtube.com/{info.get('uploader_id')}" if info.get('uploader_id') and str(info.get('uploader_id')).startswith('@') else '')
-                    )
-                    if ch_url:
-                        return ch_url
             except Exception:
                 pass
 
-        yt_dlp = _ensure_ytdlp()
-        if yt_dlp:
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': True,
-                'skip_download': True,
-                'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}}
-            }
+        yt_dlp_lib = _ensure_ytdlp()
+        if not info and yt_dlp_lib:
+            yt_dlp = yt_dlp_lib
             try:
+                ydl_opts = {'quiet': True, 'skip_download': True}
+                ext_arg = get_ytdlp_extractor_args()
+                if ext_arg:
+                    ydl_opts['extractor_args'] = {'youtube': {'player_client': get_ytdlp_clients_list()}}
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(target_url, download=False)
-                    return (
-                        info.get('uploader_url') or
-                        info.get('channel_url') or
-                        (f"https://www.youtube.com/channel/{info.get('channel_id')}" if info.get('channel_id') else '') or
-                        (f"https://www.youtube.com/{info.get('uploader_id')}" if info.get('uploader_id') and str(info.get('uploader_id')).startswith('@') else '') or
-                        ""
-                    )
+                    info = ydl.extract_info(url, download=False)
             except Exception:
                 pass
-        return ""
 
-    def obtener_descripcion(self, target_url: str) -> str:
-        """
-        Obtiene la descripción completa de un vídeo, lista de reproducción o canal usando CLI externa o librería interna.
-        """
-        custom_exe = get_external_ytdlp_exe()
-        cookie_args = get_cookie_args()
-        if custom_exe:
-            intentos_cookies = [cookie_args, []] if cookie_args else [[]]
-            for c_args in intentos_cookies:
-                try:
-                    cmd = [
-                        custom_exe,
-                        target_url,
-                        "--dump-single-json",
-                        "--flat-playlist",
-                        "--no-download",
-                        "--quiet",
-                        "--no-warnings",
-                        "--playlist-items", "1",
-                        "--extractor-args", "youtube:player_client=android,ios,web"
-                    ] + c_args
-                    res = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        encoding='utf-8',
-                        errors='replace',
-                        timeout=30,
-                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-                    )
-                    if res.returncode == 0 and res.stdout.strip():
-                        info = json.loads(res.stdout)
-                        if isinstance(info, dict):
-                            desc = info.get('description')
-                            if desc is not None:
-                                return desc
-                except Exception:
-                    pass
+        if not info:
+            raise RuntimeError("No se pudo obtener información del vídeo para extraer la transcripción.")
 
-        yt_dlp = _ensure_ytdlp()
-        if yt_dlp:
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': True,
-                'skip_download': True,
-                'playlist_items': '1',
-                'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}}
-            }
-            ydl_opts.update(get_cookie_ydl_opts())
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(target_url, download=False)
-                    if isinstance(info, dict):
-                        return info.get('description') or ""
-            except Exception:
-                pass
-        return ""
+        subs = info.get('subtitles') or {}
+        auto = info.get('automatic_captions') or {}
+
+        if not subs and not auto:
+            raise RuntimeError("Este vídeo no dispone de subtítulos ni transcripción disponibles en YouTube.")
+
+        # Determinar el idioma original del vídeo
+        orig_lang = None
+        if info.get('language'):
+            orig_lang = info.get('language')
+        if not orig_lang:
+            for k in list(auto.keys()) + list(subs.keys()):
+                if k.endswith('-orig'):
+                    orig_lang = k.replace('-orig', '')
+                    break
+        if not orig_lang and subs:
+            orig_lang = list(subs.keys())[0]
+        if not orig_lang and auto:
+            orig_lang = list(auto.keys())[0]
+        if not orig_lang:
+            orig_lang = 'es'
+
+        idioma_pedido = (idioma or 'orig').strip().lower()
+        necesita_traduccion = idioma_pedido not in ('orig', 'original') and idioma_pedido != orig_lang.lower()
+        target_lang = idioma_pedido if necesita_traduccion else orig_lang
+
+        def _buscar_track(idioma_codigo, permitir_auto=True):
+            contenedores = [subs]
+            if permitir_auto:
+                contenedores.append(auto)
+            for container in contenedores:
+                fmts = container.get(idioma_codigo)
+                if not fmts:
+                    for k, v in container.items():
+                        if k == idioma_codigo or k.startswith(f"{idioma_codigo}-"):
+                            fmts = v
+                            break
+                if fmts:
+                    for f in fmts:
+                        if f.get('ext') == 'json3':
+                            return f.get('url'), 'json3'
+                    for f in fmts:
+                        if f.get('ext') == 'vtt':
+                            return f.get('url'), 'vtt'
+            return None, None
+
+        # Si se pidió traducción:
+        # 1. Comprobar si hay un subtítulo humano en subs para ese idioma que no use traducción automática de YouTube (&tlang=)
+        track_url = None
+        track_ext = None
+        descargar_traducido_directo = False
+
+        if necesita_traduccion:
+            track_url, track_ext = _buscar_track(target_lang, permitir_auto=False)
+            if track_url and 'tlang=' not in track_url:
+                descargar_traducido_directo = True
+
+        if not descargar_traducido_directo:
+            # Buscar el track en el idioma original (primero subs humanos, luego auto)
+            track_url, track_ext = _buscar_track(orig_lang, permitir_auto=True)
+            if not track_url:
+                primera_clave = (list(subs.keys()) or list(auto.keys()))[0]
+                track_url, track_ext = _buscar_track(primera_clave, permitir_auto=True)
+
+        if not track_url:
+            raise RuntimeError("No se encontró transcripción ni subtítulos disponibles para este vídeo.")
+
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        req = urllib.request.Request(track_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            content = resp.read().decode('utf-8')
+
+        if track_ext == 'json3':
+            data = json.loads(content)
+            texto_extraido = self._procesar_json3_transcripcion(data, con_marcas=con_marcas)
+        else:
+            texto_extraido = self._procesar_vtt_transcripcion(content, con_marcas=con_marcas)
+
+        # Si el usuario solicitó traducción a otro idioma y se extrajo el original, traducirlo de forma transparente
+        if necesita_traduccion and not descargar_traducido_directo:
+            texto_extraido = self._traducir_texto_transcripcion(texto_extraido, target_lang=target_lang)
+
+        return texto_extraido
+
+    def descargar_transcripcion(self, item_o_url, destino_dir: str, idioma: str = 'orig', con_marcas: bool = False) -> str:
+        """
+        Descarga la transcripción de un vídeo y la guarda como archivo .txt.
+        Retorna la ruta absoluta del archivo generado.
+        """
+        if isinstance(item_o_url, dict):
+            url = item_o_url.get('url') or item_o_url.get('id', '')
+            titulo = item_o_url.get('title', 'Transcripcion')
+        else:
+            url = str(item_o_url)
+            titulo = 'Transcripcion'
+
+        texto = self.extraer_transcripcion(url, idioma=idioma, con_marcas=con_marcas)
+        if not texto or not texto.strip():
+            raise RuntimeError("La transcripción extraída está vacía.")
+
+        if not os.path.exists(destino_dir):
+            os.makedirs(destino_dir, exist_ok=True)
+
+        nombre_base = limpiar_extension_titulo(titulo)
+        nombre_base = re.sub(r'[\\/*?:"<>|]', '_', nombre_base).strip().rstrip('. ')
+        if not nombre_base:
+            nombre_base = "Transcripcion"
+
+        sufijo_marcas = " (con marcas)" if con_marcas else ""
+        sufijo_idioma = f" [{idioma}]" if idioma not in ('orig', 'original') else ""
+        nombre_archivo = f"{nombre_base}{sufijo_idioma}{sufijo_marcas}.txt"
+        ruta_archivo = os.path.join(destino_dir, nombre_archivo)
+
+        contador = 1
+        while os.path.exists(ruta_archivo):
+            nombre_archivo = f"{nombre_base}{sufijo_idioma}{sufijo_marcas} ({contador}).txt"
+            ruta_archivo = os.path.join(destino_dir, nombre_archivo)
+            contador += 1
+
+        with open(ruta_archivo, 'w', encoding='utf-8-sig') as f:
+            f.write(texto)
+
+        return ruta_archivo

@@ -11,7 +11,7 @@ import accessibility
 import sound_manager
 from config_manager import cargar_configuracion
 from media_utils import formatear_duracion, limpiar_extension_titulo
-from ui_vlc import pedir_confirmacion_eliminar_favorito
+from ui_mpv import pedir_confirmacion_eliminar_favorito
 from favorites_manager import (
     agregar_favorito,
     eliminar_favorito,
@@ -285,6 +285,8 @@ class ColaReproduccionDialog(wx.Dialog):
 
         lbl_dl = f"&Descargar los {num_sel} vídeos seleccionados	Ctrl+D" if num_sel > 1 else "&Descargar este vídeo	Ctrl+D"
         item_dl = menu.Append(wx.ID_ANY, lbl_dl)
+        lbl_trans = f"Descargar &transcripción a texto (.txt) de los {num_sel} vídeos..." if num_sel > 1 else "Descargar &transcripción a texto (.txt)..."
+        item_trans = menu.Append(wx.ID_ANY, lbl_trans)
         item_copy = menu.Append(wx.ID_ANY, "&Copiar enlace al portapapeles	Ctrl+C")
         item_desc = menu.Append(wx.ID_ANY, "Ver &descripción del vídeo...")
 
@@ -305,6 +307,7 @@ class ColaReproduccionDialog(wx.Dialog):
         self.Bind(wx.EVT_MENU, self.on_eliminar_item, item_del)
         self.Bind(wx.EVT_MENU, lambda e, v=video: self.on_toggle_favorito(v), item_fav)
         self.Bind(wx.EVT_MENU, lambda e, v=video: self.on_descargar_seleccion(v), item_dl)
+        self.Bind(wx.EVT_MENU, lambda e, v=video: self.on_descargar_transcripcion(v), item_trans)
         self.Bind(wx.EVT_MENU, lambda e, v=video: self.on_copiar_enlace(v), item_copy)
         self.Bind(wx.EVT_MENU, lambda e, v=video: self.mostrar_descripcion(v), item_desc)
         self.Bind(wx.EVT_MENU, lambda e: self.on_toggle_marca(), item_toggle)
@@ -392,6 +395,67 @@ class ColaReproduccionDialog(wx.Dialog):
                     accessibility.speak(f"{len(items)} elementos añadidos a favoritos en la lista '{n_lista}'.")
                 dlg.Destroy()
         self._poblar_lista()
+
+    def on_descargar_transcripcion(self, video=None):
+        marcados = [v for v in self.videos_ref if v.get('selected')]
+        items = marcados if len(marcados) > 1 else ([video] if video else [])
+        if not items:
+            sel = self.lista_cola.GetFirstSelected()
+            if sel == -1:
+                sel = self.lista_cola.GetFocusedItem()
+            if 0 <= sel < len(self.videos_ref):
+                items = [self.videos_ref[sel]]
+
+        if not items:
+            return
+
+        main_w = self.GetParent()
+        if self.is_player:
+            main_w = getattr(self.GetParent(), 'parent', self.GetParent())
+
+        from misc_dialogs import TranscripcionDialog
+        dlg = TranscripcionDialog(self, items)
+        if dlg.ShowModal() != wx.ID_OK:
+            dlg.Destroy()
+            return
+
+        con_marcas = dlg.con_marcas
+        idioma = dlg.idioma
+        dlg.Destroy()
+
+        destino = getattr(main_w, 'destino_descarga_actual', None) or getattr(main_w, 'destino_dir', os.path.expanduser("~"))
+        sound_manager.start_waiting_sound(interval=1.5)
+
+        def _worker():
+            descargadas = []
+            errores = []
+            for it in items:
+                try:
+                    r = main_w.downloader.descargar_transcripcion(it, destino_dir=destino, idioma=idioma, con_marcas=con_marcas)
+                    descargadas.append((it.get('title', 'Vídeo'), r))
+                except Exception as ex:
+                    errores.append((it.get('title', 'Vídeo'), str(ex)))
+
+            def _done():
+                sound_manager.stop_waiting_sound()
+                if descargadas:
+                    sound_manager.play_sound('download_finished')
+                    tit, r = descargadas[0]
+                    nombre_f = os.path.basename(r)
+                    accessibility.speak(f"Transcripción descargada: {nombre_f}")
+                    res = wx.MessageBox(f"Se ha descargado la transcripción con éxito:\n\n{nombre_f}\n\n¿Deseas abrir el archivo ahora?", "Transcripción completada", wx.YES_NO | wx.ICON_QUESTION, self)
+                    if res == wx.YES:
+                        try:
+                            os.startfile(r)
+                        except Exception:
+                            pass
+                elif errores:
+                    sound_manager.play_sound('error')
+                    wx.MessageBox(f"Error al obtener transcripción:\n\n{errores[0][1]}", "Aviso", wx.OK | wx.ICON_INFORMATION, self)
+
+            wx.CallAfter(_done)
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def on_descargar_seleccion(self, video=None):
         marcados = [v for v in self.videos_ref if v.get('selected')]

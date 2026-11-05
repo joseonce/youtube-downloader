@@ -29,7 +29,7 @@ from favorites_manager import (
     detectar_tipo_elemento
 )
 
-from ui_vlc import pedir_confirmacion_eliminar_favorito
+from ui_mpv import pedir_confirmacion_eliminar_favorito
 from player_dialog import VideoPreviewDialog
 from favorites_dialogs import (
     SelectFavoriteListDialog,
@@ -44,8 +44,8 @@ def _get_fav_func(name):
         return getattr(mod, name)
     if hasattr(favorites_manager, name):
         return getattr(favorites_manager, name)
-    import ui_vlc
-    return getattr(ui_vlc, name, None)
+    import ui_mpv
+    return getattr(ui_mpv, name, None)
 
 
 
@@ -294,29 +294,7 @@ class MainFavoritesMixin:
 
         tag_lista = f" de {nombre_elegido}" if (nombre_elegido and nombre_elegido != "Todas las listas") else ""
         self.set_status(f"Iniciando reproducción continua de {len(favs)} favoritos{tag_lista}...", field=0, announce=True)
-        dlg = VideoPreviewDialog(self, favs, initial_index=0)
-        res = dlg.ShowModal()
-        wants_dl = getattr(dlg, 'wants_download', False)
-        dl_video = getattr(dlg, 'download_target_video', None)
-        dlg.Destroy()
-
-        if res == wx.ID_OK and wants_dl:
-            if dl_video:
-                self.cola_descargas = [dl_video]
-                self.total_cola = 1
-                self.indice_cola = 0
-                self.descargas_completadas = 0
-                self.descargas_fallidas = 0
-                self.btn_descargar.Enable(False)
-                self.btn_cancelar.Enable(True)
-                self.btn_buscar.Enable(False)
-                sel_format_idx = self.choice_formato.GetSelection()
-                formatos_map = {0: 'video_best', 1: 'audio_mp3_192', 2: 'audio_mp3_320', 3: 'audio_m4a'}
-                formato_str = formatos_map.get(sel_format_idx, 'video_best')
-                destino = self.destino_dir
-                self._iniciar_siguiente_descarga_cola(formato_str, destino)
-            else:
-                self.on_btn_descargar(None)
+        self.lanzar_reproductor(favs, initial_index=0)
 
     def _sincronizar_vista_favoritos_tras_reproduccion(self):
         """Sincroniza la lista de resultados si algún elemento fue eliminado de favoritos en el reproductor."""
@@ -370,8 +348,85 @@ class MainFavoritesMixin:
         else:
             self.on_btn_descargar(None)
 
+    def eliminar_lista_favoritos_seleccion(self, event=None):
+        """Elimina la lista de favoritos seleccionada si está vacía. Si contiene elementos, muestra una advertencia."""
+        video = self._get_selected_video()
+        if not video or not video.get('is_fav_list'):
+            accessibility.speak("No hay ninguna lista seleccionada.")
+            return
+
+        nombre_lista = (video.get('list_name') or video.get('title') or '').strip()
+        if not nombre_lista:
+            return
+
+        if nombre_lista == "Todas las listas":
+            msg = "La lista 'Todas las listas' es la colección general y no se puede eliminar."
+            accessibility.speak(msg)
+            wx.MessageBox(msg, "No se puede eliminar", wx.OK | wx.ICON_WARNING, self)
+            return
+
+        if nombre_lista.lower() == "principal":
+            msg = "La lista 'Principal' es la lista predeterminada y no se puede eliminar."
+            accessibility.speak(msg)
+            wx.MessageBox(msg, "No se puede eliminar", wx.OK | wx.ICON_WARNING, self)
+            return
+
+        from favorites_manager import cargar_favoritos, eliminar_lista_favoritos
+        favs_dict = cargar_favoritos()
+        items_en_lista = favs_dict.get(nombre_lista, [])
+        cant = len(items_en_lista)
+
+        if cant > 0:
+            cant_str = "1 elemento" if cant == 1 else f"{cant} elementos"
+            msg = f"La lista '{nombre_lista}' no está vacía ({cant_str}). Solo se pueden eliminar listas vacías."
+            accessibility.speak(msg)
+            wx.MessageBox(
+                f"La lista '{nombre_lista}' contiene {cant_str}.\n\nPara poder eliminar una lista temática, debe estar vacía.\nMueve o elimina sus elementos antes de borrarla.",
+                "Lista no vacía",
+                wx.OK | wx.ICON_WARNING,
+                self
+            )
+            return
+
+        # Confirmación de eliminación
+        cfg = getattr(self, 'config', {}) or {}
+        if cfg.get('confirmar_eliminar_favorito', True):
+            dlg = wx.MessageDialog(
+                self,
+                f"¿Estás seguro de que deseas eliminar la lista de favoritos vacía '{nombre_lista}'?",
+                "Confirmar eliminación de lista",
+                wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION
+            )
+            res = dlg.ShowModal()
+            dlg.Destroy()
+            if res != wx.ID_YES:
+                return
+
+        exito = eliminar_lista_favoritos(nombre_lista)
+        if exito:
+            idx = self._get_current_index()
+            if 0 <= idx < len(self.resultados):
+                self.resultados.pop(idx)
+                self.lista_resultados.DeleteItem(idx)
+            total = len(self.resultados)
+            item_str = f"{total} listas"
+            self.lbl_results_info.SetLabel(f"&Mis listas de favoritos ({item_str}):")
+            msg = f"Lista de favoritos '{nombre_lista}' eliminada."
+            accessibility.speak(msg)
+            self.set_status(msg, field=0, announce=False)
+            if total > 0:
+                new_sel = min(idx, total - 1)
+                self.lista_resultados.Select(new_sel)
+                self.lista_resultados.Focus(new_sel)
+        else:
+            accessibility.speak(f"No se pudo eliminar la lista '{nombre_lista}'.")
+
     def eliminar_favorito_seleccion(self, event=None):
         """Elimina de favoritos el elemento seleccionado en la lista (Tecla Supr), solicitando confirmación si está configurado."""
+        if getattr(self, 'is_showing_fav_lists', False):
+            self.eliminar_lista_favoritos_seleccion(event)
+            return
+
         marcados = [r for r in self.resultados if r.get('selected')]
         items = marcados if len(marcados) > 1 else ([self._get_selected_video()] if self._get_selected_video() else [])
         if not items:
@@ -642,8 +697,19 @@ class MainFavoritesMixin:
                     new_sel = min(first_idx, total - 1)
                     self.lista_resultados.Select(new_sel)
                     self.lista_resultados.Focus(new_sel)
+                    accessibility.speak(f"Se han movido {len(movidos)} elementos a la lista '{lista_destino}'.")
                 else:
                     self.set_modo_boton_buscar('buscar')
+                    # Si la lista actual ha quedado vacía, volver inmediatamente al nivel superior de listas de favoritos
+                    msg = f"Se han movido todos los elementos a '{lista_destino}'. La lista '{current_fav}' ha quedado vacía."
+                    accessibility.speak(msg)
+                    self.mostrar_listas_favoritos()
+                    for idx_f, r_f in enumerate(self.resultados):
+                        if r_f.get('list_name') == lista_destino:
+                            self.lista_resultados.Select(idx_f)
+                            self.lista_resultados.Focus(idx_f)
+                            self.lista_resultados.EnsureVisible(idx_f)
+                            break
             else:
                 movidos_ids = {str(m.get('url') or m.get('id', '')) for m in movidos}
                 for idx, r in enumerate(self.resultados):
@@ -657,6 +723,24 @@ class MainFavoritesMixin:
                 if str(r.get('url') or r.get('id', '')) in affected_ids:
                     self._actualizar_item_fila(idx)
             self._actualizar_contador_seleccion()
+
+        # Actualizar conteo de elementos en navigation_stack si hay estados de listas guardados
+        if hasattr(self, 'navigation_stack') and self.navigation_stack:
+            try:
+                from favorites_manager import cargar_favoritos, obtener_favoritos
+                favs_dict_act = cargar_favoritos()
+                todos_total_act = len(obtener_favoritos())
+                for st in self.navigation_stack:
+                    if st.get('is_showing_fav_lists'):
+                        for r_st in st.get('resultados', []):
+                            ln = r_st.get('list_name') or r_st.get('title')
+                            if ln == 'Todas las listas':
+                                r_st['duration'] = f"{todos_total_act} elementos" if todos_total_act != 1 else "1 elemento"
+                            else:
+                                c = len(favs_dict_act.get(ln, []))
+                                r_st['duration'] = f"{c} elementos" if c != 1 else "1 elemento"
+            except Exception:
+                pass
 
     def cambiar_favorito_a_nueva_lista(self, video=None):
         """Pide el nombre de una nueva lista, la crea y mueve los elementos seleccionados (o bajo el cursor) a ella."""
@@ -684,6 +768,16 @@ class MainFavoritesMixin:
                 return
 
         dlg = wx.TextEntryDialog(self, "Introduce el nombre de la nueva lista de favoritos:", "Nueva lista de favoritos")
+        if dlg.ShowModal() == wx.ID_OK:
+            nueva_lista = dlg.GetValue().strip()
+            dlg.Destroy()
+            if nueva_lista:
+                from favorites_manager import crear_lista_favoritos
+                crear_lista_favoritos(nueva_lista)
+                self.cambiar_favorito_a_lista(items, nueva_lista)
+        else:
+            dlg.Destroy()
+
     def on_cambiar_favorito_lista(self, event=None, video_especifico=None):
         """Abre un diálogo accesible para cambiar los elementos seleccionados a otra lista de favoritos o crear una nueva."""
         items = self._get_videos_para_cambio_lista(video_especifico=video_especifico if isinstance(video_especifico, dict) else None)
@@ -760,9 +854,7 @@ class MainFavoritesMixin:
         item_nueva = menu_cambiar.Append(wx.ID_ANY, "[+] &Nueva lista...")
         self.Bind(wx.EVT_MENU, lambda e, v=video: self.cambiar_favorito_a_nueva_lista(v), item_nueva)
 
-        menu_cambiar.AppendSeparator()
-        item_dlg = menu_cambiar.Append(wx.ID_ANY, "&Elegir mediante ventana...")
-        self.Bind(wx.EVT_MENU, lambda e, v=video: self.on_cambiar_favorito_lista(e, video_especifico=v), item_dlg)
+
 
         if num_sel > 1:
             label_sub = f"&Cambiar de lista de favoritos ({num_sel} seleccionados)"

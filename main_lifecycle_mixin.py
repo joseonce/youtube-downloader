@@ -106,17 +106,29 @@ class MainLifecycleMixin:
         self.item_eliminar_fav = menu_favoritos.Append(1040, "&Eliminar de Favoritos\tSupr")
         self.item_vaciar_fav = menu_favoritos.Append(1042, "&Vaciar lista de favoritos...")
 
-        # 5. Menú Cuenta (YouTube / Google)
-        menu_cuenta = wx.Menu()
-        item_historial = menu_cuenta.Append(1050, "&Historial de reproducciones...\tCtrl+Shift+H")
-        item_ver_mas_tarde = menu_cuenta.Append(1051, "Lista \"&Ver más tarde\"...\tCtrl+Shift+W")
-        item_mis_playlists = menu_cuenta.Append(1052, "Mis &listas de reproducción...\tCtrl+Shift+Y")
-        menu_cuenta.AppendSeparator()
-        item_cfg_cuenta = menu_cuenta.Append(1053, "Configurar &sesión y cookies...")
-        
-        # 6. Menú Opciones
+        # 5. Menú Opciones
         menu_opciones = wx.Menu()
         item_preferencias = menu_opciones.Append(1030, "&Preferencias...\tCtrl+,")
+        menu_opciones.AppendSeparator()
+
+        # Submenú Método de extracción yt-dlp
+        menu_metodo = wx.Menu()
+        self.item_metodo_rapido = menu_metodo.AppendRadioItem(1060, "&Rápido / Estándar (Android, iOS, Web)")
+        self.item_metodo_extendido = menu_metodo.AppendRadioItem(1061, "&Compatibilidad extendida (VisionOS, TV - directos finalizados)")
+        self.item_metodo_default = menu_metodo.AppendRadioItem(1062, "&Predeterminado de yt-dlp (sin restricciones)")
+        menu_opciones.AppendSubMenu(menu_metodo, "&Método de extracción yt-dlp (si falla un vídeo)")
+
+        cur_metodo = self.config.get('metodo_extraccion_ytdlp', 'rapido')
+        if cur_metodo == 'extendido':
+            self.item_metodo_extendido.Check(True)
+        elif cur_metodo == 'default':
+            self.item_metodo_default.Check(True)
+        else:
+            self.item_metodo_rapido.Check(True)
+
+        self.Bind(wx.EVT_MENU, lambda e: self.cambiar_metodo_extraccion('rapido'), self.item_metodo_rapido)
+        self.Bind(wx.EVT_MENU, lambda e: self.cambiar_metodo_extraccion('extendido'), self.item_metodo_extendido)
+        self.Bind(wx.EVT_MENU, lambda e: self.cambiar_metodo_extraccion('default'), self.item_metodo_default)
 
         # 7. Menú Ayuda
         menu_ayuda = wx.Menu()
@@ -130,7 +142,6 @@ class MainLifecycleMixin:
         menubar.Append(menu_edicion, "&Edición")
         menubar.Append(menu_reproduccion, "&Reproducción")
         menubar.Append(menu_favoritos, "&Favoritos")
-        menubar.Append(menu_cuenta, "&Cuenta")
         menubar.Append(menu_opciones, "&Opciones")
         menubar.Append(menu_ayuda, "A&yuda")
         self.SetMenuBar(menubar)
@@ -168,12 +179,6 @@ class MainLifecycleMixin:
         self.Bind(wx.EVT_MENU, self.on_cambiar_favorito_lista, self.item_cambiar_fav)
         self.Bind(wx.EVT_MENU, self.eliminar_favorito_seleccion, self.item_eliminar_fav)
         self.Bind(wx.EVT_MENU, self.vaciar_favoritos, self.item_vaciar_fav)
-
-        # Eventos del menú Cuenta
-        self.Bind(wx.EVT_MENU, lambda e: self.ejecutar_busqueda_historial(), item_historial)
-        self.Bind(wx.EVT_MENU, lambda e: self.ejecutar_busqueda_ver_mas_tarde(), item_ver_mas_tarde)
-        self.Bind(wx.EVT_MENU, lambda e: self.ejecutar_busqueda_mis_playlists(), item_mis_playlists)
-        self.Bind(wx.EVT_MENU, self.on_abrir_opciones, item_cfg_cuenta)
 
         # Eventos del menú Opciones
         self.Bind(wx.EVT_MENU, self.on_abrir_opciones, item_preferencias)
@@ -320,7 +325,17 @@ class MainLifecycleMixin:
     def on_tipo_busqueda_changed(self, event=None):
         sel = self.choice_tipo_busqueda.GetSelection()
         tipo_str = self.choice_tipo_busqueda.GetString(sel)
-        accessibility.speak(f"Tipo de búsqueda: {tipo_str}")
+        mapa = {
+            0: "Vídeos",
+            1: "Canales",
+            2: "Listas"
+        }
+        anuncio = mapa.get(sel, tipo_str)
+        # Si un lector de pantalla (NVDA, JAWS) está activo, Windows ya vocaliza nativamente
+        # el elemento seleccionado en el ComboBox al pulsar las flechas. Solo llamamos a speak()
+        # si no hay lector de pantalla activo para evitar que se repita dos veces.
+        if not accessibility.is_screen_reader_active():
+            accessibility.speak(anuncio)
 
     def _init_shortcuts(self):
         """Tabla de aceleradores de teclado globales."""
@@ -329,15 +344,14 @@ class MainLifecycleMixin:
             (wx.ACCEL_CTRL, ord('F'), wx.ID_FIND),
             (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('N'), 1008),
             (wx.ACCEL_NORMAL, wx.WXK_F3, 1008),
+            (wx.ACCEL_ALT, ord('S'), 1008),
+            (wx.ACCEL_ALT, ord('s'), 1008),
             (wx.ACCEL_CTRL, ord('P'), wx.ID_PREVIEW),
             (wx.ACCEL_CTRL, ord('L'), 1006),
             (wx.ACCEL_CTRL, ord('Q'), 1080),
             (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('Q'), 1081),
             (wx.ACCEL_CTRL, ord('J'), 1082),
             (wx.ACCEL_CTRL, ord('H'), 1004),
-            (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('H'), 1050),
-            (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('W'), 1051),
-            (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('Y'), 1052),
             (wx.ACCEL_CTRL, ord('B'), 1005),
             (wx.ACCEL_CTRL, ord('M'), 1041),
             (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('P'), 1007),
@@ -367,9 +381,6 @@ class MainLifecycleMixin:
         self.Bind(wx.EVT_MENU, self.on_actualizar_app, id=1032)
         self.Bind(wx.EVT_MENU, self.on_actualizar_ytdlp, id=1002)
         self.Bind(wx.EVT_MENU, self.mostrar_favoritos, id=1004)
-        self.Bind(wx.EVT_MENU, lambda e: self.ejecutar_busqueda_historial(), id=1050)
-        self.Bind(wx.EVT_MENU, lambda e: self.ejecutar_busqueda_ver_mas_tarde(), id=1051)
-        self.Bind(wx.EVT_MENU, lambda e: self.ejecutar_busqueda_mis_playlists(), id=1052)
         self.Bind(wx.EVT_MENU, self.toggle_favorito_seleccion, id=1005)
         self.Bind(wx.EVT_MENU, self.on_cambiar_favorito_lista, id=1041)
         self.Bind(wx.EVT_MENU, self.eliminar_favorito_seleccion, id=1040)
@@ -423,14 +434,16 @@ class MainLifecycleMixin:
         su control directo con atajos (vídeo F11, pausa, volumen, etc.).
         """
         if event.GetActive():
-            if hasattr(self, 'active_preview_dialog') and self.active_preview_dialog:
-                dlg = self.active_preview_dialog
-                if not getattr(dlg, '_is_closing', False):
-                    try:
-                        if dlg.IsShown():
-                            wx.CallAfter(self._enfocar_reproductor_activo)
-                    except Exception:
-                        pass
+            cfg = getattr(self, 'config', {}) or cargar_configuracion()
+            if not cfg.get('reproductor_ventana_independiente', True):
+                if hasattr(self, 'active_preview_dialog') and self.active_preview_dialog:
+                    dlg = self.active_preview_dialog
+                    if not getattr(dlg, '_is_closing', False):
+                        try:
+                            if dlg.IsShown():
+                                wx.CallAfter(self._enfocar_reproductor_activo)
+                        except Exception:
+                            pass
         event.Skip()
 
     def _enfocar_reproductor_activo(self):
@@ -529,3 +542,10 @@ class MainLifecycleMixin:
 
         event.Skip()
 
+
+    def cambiar_metodo_extraccion(self, metodo):
+        self.config['metodo_extraccion_ytdlp'] = metodo
+        from config_manager import guardar_configuracion, METODOS_EXTRACCION
+        guardar_configuracion(self.config)
+        nombre = METODOS_EXTRACCION.get(metodo, {}).get('nombre', metodo)
+        accessibility.speak(f"Método de extracción cambiado a: {nombre}")

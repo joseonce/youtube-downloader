@@ -14,8 +14,6 @@ from config_manager import (
     get_bin_dir,
     get_external_ytdlp_exe,
     get_ffmpeg_dir,
-    get_cookie_args,
-    get_cookie_ydl_opts
 )
 
 _yt_dlp = None
@@ -143,11 +141,11 @@ def precargar_stream_en_segundo_plano(url_o_id, solo_audio=True):
     return t
 
 
-def obtener_url_streaming(url_o_id, solo_audio=False):
+def obtener_url_streaming(url_o_id, solo_audio=False, metodo_override=None):
     """
     Obtiene la URL directa de streaming (audio-only ultrarrápido o MP4/WebM con vídeo y audio combinados)
-    usando yt-dlp para reproducir directamente en VLC sin descargar el archivo completo.
-    Si solo_audio=True, obtiene exclusivamente el flujo de audio más ligero para un
+    usando yt-dlp para reproducir directamente sin descargar el archivo completo.
+    Si solo_audio=True, obtiene preferentemente el flujo de audio más ligero para un
     buffering casi instantáneo y transiciones inmediatas entre canciones.
     """
     original_input = url_o_id
@@ -170,8 +168,12 @@ def obtener_url_streaming(url_o_id, solo_audio=False):
                 _STREAM_CACHE[(original_input, bool(solo_audio))] = (res_url, time.time())
         return res_url
 
+    from config_manager import get_ytdlp_extractor_args, get_ytdlp_clients_list
+    from ui_mpv import log_playback
+    ext_arg = get_ytdlp_extractor_args(override=metodo_override)
     custom_exe = get_external_ytdlp_exe()
-    cookie_args = get_cookie_args()
+
+    log_playback(f"[Streaming] Solicitando URL para '{original_input}' (solo_audio={solo_audio}, metodo={ext_arg})")
 
     if solo_audio:
         fmt = 'ba/ba*/bestaudio/best[acodec!=none]/18/best'
@@ -180,25 +182,26 @@ def obtener_url_streaming(url_o_id, solo_audio=False):
 
     if custom_exe:
         intentos_cmd = []
-        intentos_cmd.append([
-            custom_exe,
-            '-g',
-            '-f', fmt,
-            '--extractor-args', 'youtube:player_client=android,ios,web',
-            '--no-warnings',
-            '--quiet'
-        ] + cookie_args + [url_o_id])
+        ext_candidates = []
+        if ext_arg:
+            ext_candidates.append(ext_arg)
+        for fallback_arg in ['youtube:player_client=android', 'youtube:player_client=android,ios,web', None]:
+            if fallback_arg not in ext_candidates:
+                ext_candidates.append(fallback_arg)
 
-        if cookie_args:
-            intentos_cmd.append([
+        for arg in ext_candidates:
+            cmd = [
                 custom_exe,
                 '-g',
+                '--no-playlist',
                 '-f', fmt,
-                '--extractor-args', 'youtube:player_client=android',
                 '--no-warnings',
                 '--quiet',
-                url_o_id
-            ])
+            ]
+            if arg:
+                cmd.extend(['--extractor-args', arg])
+            cmd.append(url_o_id)
+            intentos_cmd.append(cmd)
 
         for cmd in intentos_cmd:
             try:
@@ -214,30 +217,28 @@ def obtener_url_streaming(url_o_id, solo_audio=False):
                 if res.returncode == 0 and res.stdout.strip():
                     urls = [u.strip() for u in res.stdout.strip().splitlines() if u.strip()]
                     if urls:
+                        log_playback(f"[Streaming] URL directa obtenida exitosamente via -g: {urls[0][:120]}...")
                         return _cache_and_return(urls[0])
-            except Exception:
-                pass
+                else:
+                    cmd_preview = " ".join([os.path.basename(cmd[0])] + cmd[1:])
+                    err_info = res.stderr.strip()[:200] if res.stderr else "sin salida"
+                    log_playback(f"[Streaming] Intento -g (rc={res.returncode}): {cmd_preview} -> {err_info}", level="DEBUG")
+            except Exception as e_cmd:
+                log_playback(f"[Streaming] Excepción en intento -g: {e_cmd}", level="WARNING")
 
         intentos_json = []
-        intentos_json.append([
-            custom_exe,
-            '--dump-single-json',
-            '--no-download',
-            '--no-warnings',
-            '--quiet',
-            '--extractor-args', 'youtube:player_client=android,ios,web'
-        ] + cookie_args + [url_o_id])
-
-        if cookie_args:
-            intentos_json.append([
+        for arg in ext_candidates:
+            cmd_json = [
                 custom_exe,
                 '--dump-single-json',
                 '--no-download',
                 '--no-warnings',
                 '--quiet',
-                '--extractor-args', 'youtube:player_client=android',
-                url_o_id
-            ])
+            ]
+            if arg:
+                cmd_json.extend(['--extractor-args', arg])
+            cmd_json.append(url_o_id)
+            intentos_json.append(cmd_json)
 
         for cmd_json in intentos_json:
             try:
@@ -256,11 +257,14 @@ def obtener_url_streaming(url_o_id, solo_audio=False):
                     if solo_audio:
                         audio_formats = [f['url'] for f in formats if f.get('url') and f.get('acodec') != 'none' and f.get('vcodec') == 'none']
                         if audio_formats:
+                            log_playback(f"[Streaming] URL audio obtenida via JSON: {audio_formats[-1][:120]}...")
                             return _cache_and_return(audio_formats[-1])
                         combined_audio = [f['url'] for f in formats if f.get('url') and f.get('acodec') != 'none']
                         if combined_audio:
+                            log_playback(f"[Streaming] URL combinado-audio obtenida via JSON: {combined_audio[-1][:120]}...")
                             return _cache_and_return(combined_audio[-1])
                         if info.get('url'):
+                            log_playback(f"[Streaming] URL base obtenida via JSON: {info['url'][:120]}...")
                             return _cache_and_return(info['url'])
                     else:
                         combined = [
@@ -269,62 +273,78 @@ def obtener_url_streaming(url_o_id, solo_audio=False):
                         ]
                         if combined:
                             combined.sort(key=lambda f: (f.get('height') or 0, f.get('tbr') or 0))
+                            log_playback(f"[Streaming] URL vídeo/audio combinada obtenida via JSON: {combined[-1]['url'][:120]}...")
                             return _cache_and_return(combined[-1]['url'])
                         hls_video = [
                             f['url'] for f in formats 
                             if 'manifest.googlevideo.com/api/manifest/hls_playlist' in f.get('url', '') and f.get('vcodec') != 'none'
                         ]
                         if hls_video:
+                            log_playback(f"[Streaming] URL HLS vídeo obtenida via JSON: {hls_video[-1][:120]}...")
                             return _cache_and_return(hls_video[-1])
                         if info.get('url'):
+                            log_playback(f"[Streaming] URL directa obtenida via JSON: {info['url'][:120]}...")
                             return _cache_and_return(info['url'])
-            except Exception:
-                pass
+            except Exception as e_json:
+                log_playback(f"[Streaming] Excepción en intento dump-single-json: {e_json}", level="DEBUG")
 
     yt_dlp = _ensure_ytdlp()
     if yt_dlp:
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}}
-        }
-        ydl_opts.update(get_cookie_ydl_opts())
-        if solo_audio:
-            ydl_opts['format'] = fmt
+        clients = get_ytdlp_clients_list(override=metodo_override)
+        client_candidates = []
+        if clients:
+            client_candidates.append(clients)
+        for fb in [['android'], ['android', 'ios', 'web'], None]:
+            if fb not in client_candidates:
+                client_candidates.append(fb)
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url_o_id, download=False)
-                formats = info.get('formats', [])
+        for cl in client_candidates:
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': True,
+            }
+            if cl:
+                ydl_opts['extractor_args'] = {'youtube': {'player_client': cl}}
+            if solo_audio:
+                ydl_opts['format'] = fmt
 
-                if solo_audio:
-                    audio_formats = [f['url'] for f in formats if f.get('url') and f.get('acodec') != 'none' and f.get('vcodec') == 'none']
-                    if audio_formats:
-                        return _cache_and_return(audio_formats[-1])
-                    combined_audio = [f['url'] for f in formats if f.get('url') and f.get('acodec') != 'none']
-                    if combined_audio:
-                        return _cache_and_return(combined_audio[-1])
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url_o_id, download=False)
+                    formats = info.get('formats', [])
+
+                    if solo_audio:
+                        audio_formats = [f['url'] for f in formats if f.get('url') and f.get('acodec') != 'none' and f.get('vcodec') == 'none']
+                        if audio_formats:
+                            return _cache_and_return(audio_formats[-1])
+                        combined_audio = [f['url'] for f in formats if f.get('url') and f.get('acodec') != 'none']
+                        if combined_audio:
+                            return _cache_and_return(combined_audio[-1])
+                        if info.get('url'):
+                            return _cache_and_return(info['url'])
+
+                    combined = [
+                        f for f in formats 
+                        if f.get('url') and f.get('vcodec') != 'none' and f.get('acodec') != 'none'
+                    ]
+                    if combined:
+                        combined.sort(key=lambda f: (f.get('height') or 0, f.get('tbr') or 0))
+                        return _cache_and_return(combined[-1]['url'])
+
+                    hls_video = [
+                        f['url'] for f in formats 
+                        if 'manifest.googlevideo.com/api/manifest/hls_playlist' in f.get('url', '') and f.get('vcodec') != 'none'
+                    ]
+                    if hls_video:
+                        return _cache_and_return(hls_video[-1])
+
                     if info.get('url'):
                         return _cache_and_return(info['url'])
+            except Exception:
+                pass
 
-                combined = [
-                    f for f in formats 
-                    if f.get('url') and f.get('vcodec') != 'none' and f.get('acodec') != 'none'
-                ]
-                if combined:
-                    combined.sort(key=lambda f: (f.get('height') or 0, f.get('tbr') or 0))
-                    return _cache_and_return(combined[-1]['url'])
-
-                hls_video = [
-                    f['url'] for f in formats 
-                    if 'manifest.googlevideo.com/api/manifest/hls_playlist' in f.get('url', '') and f.get('vcodec') != 'none'
-                ]
-                if hls_video:
-                    return _cache_and_return(hls_video[-1])
-
-                if info.get('url'):
-                    return _cache_and_return(info['url'])
-        except Exception:
-            pass
+    if url_o_id and str(url_o_id).startswith('http'):
+        log_playback(f"[Streaming] Fallback final resiliente: pasando URL original '{url_o_id}' directamente a MPV", level="WARNING")
+        return _cache_and_return(url_o_id)
 
     raise RuntimeError("No se pudo obtener el flujo directo multimedia para reproducir. El vídeo podría tener restricciones de YouTube o requerir actualización de componentes.")

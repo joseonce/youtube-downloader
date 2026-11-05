@@ -14,8 +14,8 @@ import sound_manager
 from config_manager import cargar_configuracion, guardar_configuracion
 from streaming import obtener_url_streaming, precargar_stream_en_segundo_plano
 from media_utils import formatear_duracion, formatear_visitas, limpiar_extension_titulo
-from ui_vlc import vlc, get_vlc_module, init_vlc_env
-from player_controls_mixin import PlayerControlsMixin
+from ui_mpv import get_mpv_module, init_mpv_env, create_mpv_player, log_playback, resolve_mpv_audio_device
+from player_controls_mixin import PlayerControlsMixin, MPVPlayerCompatFacade
 
 
 class ProgressBarSlider(wx.Slider):
@@ -43,7 +43,7 @@ class VideoCanvasPanel(wx.Panel):
 
 
 
-class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
+class VideoPreviewDialog(PlayerControlsMixin, wx.Frame):
     def __init__(self, parent, video_data_or_list, initial_index=0):
         if isinstance(video_data_or_list, list):
             self.videos = list(video_data_or_list)
@@ -59,6 +59,8 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
         self.shuffle_mode = cfg.get('aleatorio_reproductor', False)
         self.reproducir_con_video = cfg.get('reproducir_con_video', True)
         self.show_video = self.reproducir_con_video
+        self.independent_window = cfg.get('reproductor_ventana_independiente', True)
+        self.auto_close_on_finish = cfg.get('cerrar_reproductor_al_finalizar', False)
         self.playback_speed = float(cfg.get('velocidad_reproduccion', 1.0))
         self.playback_speed = round(min(2.0, max(0.5, self.playback_speed)), 1)
         self.audio_output_device = cfg.get('audio_output_device', '')
@@ -80,11 +82,13 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
 
         current_video = self.videos[self.current_index] if self.videos else {}
 
+        self._custom_parent = parent
+        parent_for_init = None if getattr(self, 'independent_window', True) else parent
         super().__init__(
-            parent,
+            parent_for_init,
             title=f"Reproductor: {current_video.get('title', 'Vídeo')}",
             size=(920, 680),
-            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER | wx.MAXIMIZE_BOX
+            style=wx.DEFAULT_FRAME_STYLE
         )
         
         self._is_closing = False
@@ -98,27 +102,9 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
         self._prefetch_triggered = False
         self._prefetch_timer = None
 
-        _vlc = get_vlc_module()
-        if _vlc:
-            try:
-                self.vlc_instance = _vlc.Instance(
-                    '--quiet', '--no-video-title-show',
-                    '--network-caching=300',
-                    '--file-caching=300',
-                    '--live-caching=300'
-                )
-                self.vlc_player = self.vlc_instance.media_player_new()
-                if self.audio_output_device:
-                    try:
-                        self.vlc_player.audio_output_device_set(None, self.audio_output_device)
-                    except Exception:
-                        pass
-            except Exception:
-                self.vlc_instance = None
-                self.vlc_player = None
-        else:
-            self.vlc_instance = None
-            self.vlc_player = None
+        self.mpv_player = None
+        if parent and hasattr(parent, 'active_preview_dialog'):
+            parent.active_preview_dialog = self
 
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_timer, self.timer)
@@ -136,12 +122,14 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
         row_top.Add(self.btn_fav, 0, wx.ALIGN_CENTER_VERTICAL)
         sizer.Add(row_top, 0, wx.ALL | wx.EXPAND, 8)
 
-        # Lienzo nativo de vídeo (Panel con fondo negro sobre el que dibuja libvlc)
+        # Lienzo nativo de vídeo (Panel con fondo negro sobre el que dibuja mpv)
         self.video_panel = VideoCanvasPanel(self, size=(880, 440), style=wx.BORDER_SUNKEN)
         self.video_panel.SetBackgroundColour(wx.Colour(0, 0, 0))
         sizer.Add(self.video_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
         if not self.show_video:
             self.video_panel.Hide()
+
+        self._init_mpv_player()
 
         # Barra de progreso y tiempo (excluida del tabulador, solo útil para videntes)
         row_seek = wx.BoxSizer(wx.HORIZONTAL)
@@ -237,7 +225,8 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
         self.btn_close = wx.Button(box_controls, id=wx.ID_CANCEL, label="Cerrar reproductor")
         self.btn_close.Bind(wx.EVT_BUTTON, self.on_close_click)
         sizer_controls.Add(self.btn_close, 0, wx.ALIGN_CENTER_VERTICAL)
-        self.SetEscapeId(wx.ID_CANCEL)
+        if hasattr(self, 'SetEscapeId'):
+            self.SetEscapeId(wx.ID_CANCEL)
 
         sizer.Add(sizer_controls, 0, wx.EXPAND | wx.ALL, 8)
 
@@ -253,10 +242,26 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
 
         # Cargar e iniciar la primera pista
         wx.CallAfter(self.load_and_play_current)
-        if hasattr(self, 'btn_play_pause') and self.btn_play_pause:
-            wx.CallAfter(self.btn_play_pause.SetFocus)
+        def _safe_focus():
+            try:
+                if self and hasattr(self, 'btn_play_pause') and self.btn_play_pause:
+                    self.btn_play_pause.SetFocus()
+            except Exception:
+                pass
+        wx.CallAfter(_safe_focus)
         if len(self.videos) > 1:
             wx.CallAfter(self._trigger_prefetch_pipeline)
+
+    def GetParent(self):
+        p = super().GetParent()
+        return p if p is not None else getattr(self, '_custom_parent', None)
+
+    def IsModal(self):
+        return getattr(self, '_is_modal', False)
+
+    def EndModal(self, retCode=wx.ID_CANCEL):
+        self._is_modal = False
+        self.Close()
 
     @property
     def video(self):
@@ -292,6 +297,75 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
         except (RuntimeError, Exception):
             pass
 
+    def Destroy(self):
+        try:
+            self.on_cleanup()
+        except Exception:
+            pass
+        return super().Destroy()
+
+    def _init_mpv_player(self):
+        wid = int(self.video_panel.GetHandle()) if sys.platform.startswith('win') else None
+        self.mpv_player = create_mpv_player(wid=wid, hwdec='auto', audio_device=self.audio_output_device, ytdl=True)
+        if self.mpv_player:
+            try:
+                if not self.show_video:
+                    self.mpv_player.vid = 'no'
+                else:
+                    self.mpv_player.vid = 'auto'
+                self.mpv_player.volume = float(self.initial_vol)
+                self.mpv_player.speed = float(self.playback_speed)
+            except Exception:
+                pass
+            self._setup_mpv_observers()
+
+    def _setup_mpv_observers(self):
+        if not self.mpv_player:
+            return
+        try:
+            @self.mpv_player.property_observer('pause')
+            def _on_pause(name, val):
+                if getattr(self, '_is_closing', False) or not wx.GetApp():
+                    return
+                log_playback(f"MPV propiedad 'pause' cambió a: {val}")
+                def _apply():
+                    try:
+                        if val:
+                            self.btn_play_pause.SetLabel("Reanudar")
+                            self.lbl_status.SetLabel("Vídeo pausado.")
+                        else:
+                            self.btn_play_pause.SetLabel("Pausar")
+                            self.lbl_status.SetLabel("Reproduciendo vídeo.")
+                    except Exception:
+                        pass
+                wx.CallAfter(_apply)
+
+            @self.mpv_player.property_observer('eof-reached')
+            def _on_eof(name, val):
+                if val and not getattr(self, '_is_closing', False) and wx.GetApp():
+                    log_playback("MPV 'eof-reached' detectado. Finalizando o pasando a siguiente pista.")
+                    try:
+                        cur_t = getattr(self.mpv_player, 'time_pos', None)
+                        dur_t = getattr(self.mpv_player, 'duration', None)
+                        if dur_t and cur_t and (dur_t - cur_t) < 3.0:
+                            wx.CallAfter(self.on_track_finished)
+                    except Exception:
+                        wx.CallAfter(self.on_track_finished)
+
+            if hasattr(self.mpv_player, 'event_callback'):
+                @self.mpv_player.event_callback('end-file')
+                def _on_end_file(event):
+                    try:
+                        ev_data = getattr(event, 'data', None) or {}
+                        reason = getattr(ev_data, 'reason', None)
+                        error = getattr(ev_data, 'error', None)
+                        if reason or error:
+                            log_playback(f"MPV evento 'end-file': reason={reason}, error={error}", level="WARNING" if error else "DEBUG")
+                    except Exception:
+                        pass
+        except Exception as e_obs:
+            log_playback(f"Error configurando observadores MPV: {e_obs}", level="WARNING")
+
     def load_and_play_current(self):
         if not self.videos or getattr(self, '_is_closing', False):
             return
@@ -301,71 +375,56 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
         if hasattr(self, '_prefetch_timer') and self._prefetch_timer and self._prefetch_timer.IsRunning():
             self._prefetch_timer.Stop()
 
-        if not self.vlc_player:
-            _vlc = get_vlc_module()
-            if _vlc and not self.vlc_instance:
-                try:
-                    self.vlc_instance = _vlc.Instance(
-                        '--quiet', '--no-video-title-show',
-                        '--network-caching=300',
-                        '--file-caching=300',
-                        '--live-caching=300'
-                    )
-                    self.vlc_player = self.vlc_instance.media_player_new()
-                    if self.audio_output_device:
-                        try:
-                            self.vlc_player.audio_output_device_set(None, self.audio_output_device)
-                        except Exception:
-                            pass
-                except Exception:
-                    self.vlc_player = None
+        if not self.mpv_player:
+            self._init_mpv_player()
 
-        if not self.vlc_player:
-            self.lbl_status.SetLabel("VLC no está disponible. Abriendo en el navegador...")
-            accessibility.speak("VLC no está disponible. Abriendo en el navegador.")
+        if not self.mpv_player:
+            log_playback("load_and_play_current: self.mpv_player es None tras _init_mpv_player", level="ERROR")
+            self.lbl_status.SetLabel("mpv no está disponible. Abriendo en el navegador...")
+            accessibility.speak("mpv no está disponible. Abriendo en el navegador.")
             try:
+                import webbrowser
                 webbrowser.open(self.video.get('url', ''))
             except Exception:
                 pass
             return
 
-        # Vincular ventana nativa HWND de Windows si el vídeo está visible, o desvincularla si no
-        if sys.platform.startswith('win'):
-            if self.show_video:
-                hwnd = self.video_panel.GetHandle()
-                self.vlc_player.set_hwnd(hwnd)
-            else:
-                self.vlc_player.set_hwnd(0)
-
         if hasattr(self, 'timer') and self.timer.IsRunning():
             self.timer.Stop()
 
-        # Detener la reproducción anterior de forma instantánea y no bloqueante:
-        # set_media(None) libera el media actual sin el retraso que tiene stop().
-        if self.vlc_player:
-            try:
-                self.vlc_player.set_media(None)
-            except Exception:
-                pass
+        try:
+            self.mpv_player.stop()
+        except Exception:
+            pass
 
         self.lbl_status.SetLabel("Obteniendo flujo multimedia...")
-        accessibility.speak(f"Cargando: {self.video.get('title', 'Vídeo')}")
 
         target_url = self.video.get('url') or self.video.get('id', '')
         solo_audio = not self.show_video
+        titulo = self.video.get('title', 'Desconocido')
+        log_playback(f"load_and_play_current: Pista {self.current_index + 1}/{len(self.videos)}: '{titulo}' (ID: {self.video.get('id')}), solo_audio={solo_audio}")
 
-        # Si ya teníamos la URL pre-cargada
-        if target_url in self._prefetched_streams:
-            stream_url = self._prefetched_streams[target_url]
-            self._start_vlc_playback(stream_url)
+        # Si ya teníamos la URL pre-cargada localmente o en la caché global de streaming
+        cached_url = self._prefetched_streams.get(target_url)
+        if not cached_url:
+            from streaming import _STREAM_CACHE, _STREAM_CACHE_LOCK, _CACHE_TTL
+            with _STREAM_CACHE_LOCK:
+                for k in [(target_url, bool(solo_audio)), (self.video.get('id', ''), bool(solo_audio))]:
+                    if k in _STREAM_CACHE:
+                        c_u, ts = _STREAM_CACHE[k]
+                        if time.time() - ts < _CACHE_TTL:
+                            cached_url = c_u
+                            self._prefetched_streams[target_url] = cached_url
+                            break
+
+        if cached_url:
+            log_playback(f"load_and_play_current: Pista encontrada en caché: {cached_url[:120]}...")
+            self._start_mpv_playback(cached_url)
             self._trigger_prefetch_pipeline()
             return
 
         def _fetch():
             try:
-                # Si el prefetch en background ya está en curso para esta URL,
-                # esperamos a que termine (hasta 15 s) antes de lanzar otra petición
-                # redundante. Así el "salto manual" con N se beneficia del prefetch ya iniciado.
                 import time as _time
                 waited = 0.0
                 while target_url in self._prefetching_urls and waited < 15.0:
@@ -376,14 +435,21 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
 
                 if target_url in self._prefetched_streams:
                     stream_url = self._prefetched_streams[target_url]
+                    log_playback(f"_fetch: Stream obtenido desde prefetch de fondo para '{target_url}'")
                 else:
+                    log_playback(f"_fetch: Invocando obtener_url_streaming para '{target_url}' (solo_audio={solo_audio})")
                     stream_url = obtener_url_streaming(target_url, solo_audio=solo_audio)
                     if stream_url:
                         self._prefetched_streams[target_url] = stream_url
+                        log_playback(f"_fetch: obtener_url_streaming retornó: {stream_url[:120]}...")
+                    else:
+                        stream_url = target_url
+                        log_playback(f"_fetch: obtener_url_streaming retornó None, pasando URL directa a MPV: '{target_url}'", level="WARNING")
                 if not getattr(self, '_is_closing', False) and wx.GetApp():
-                    wx.CallAfter(self._start_vlc_playback, stream_url)
+                    wx.CallAfter(self._start_mpv_playback, stream_url)
                     wx.CallAfter(self._trigger_prefetch_pipeline)
             except Exception as e:
+                log_playback(f"_fetch excepción: {e}", level="ERROR", exc=e)
                 if not getattr(self, '_is_closing', False) and wx.GetApp():
                     wx.CallAfter(self._on_play_error, str(e))
 
@@ -392,53 +458,70 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
     def set_audio_output_device(self, dev_id):
         """Aplica dinámicamente el dispositivo de salida de audio seleccionado."""
         self.audio_output_device = dev_id or ''
-        if self.vlc_player:
+        resolved = resolve_mpv_audio_device(self.audio_output_device, player=self.mpv_player)
+        log_playback(f"set_audio_output_device: '{self.audio_output_device}' -> resuelto: '{resolved}'")
+        if self.mpv_player:
             try:
-                self.vlc_player.audio_output_device_set(None, self.audio_output_device)
-            except Exception:
-                pass
+                self.mpv_player['audio-device'] = resolved
+            except Exception as e:
+                log_playback(f"set_audio_output_device fallo al asignar a MPV: {e}. Fallback a 'auto'", level="WARNING")
+                try:
+                    self.mpv_player['audio-device'] = 'auto'
+                except Exception:
+                    pass
 
-    def _start_vlc_playback(self, stream_url):
-        if getattr(self, '_is_closing', False) or not self.vlc_instance or not self.vlc_player:
+    def _start_mpv_playback(self, stream_url):
+        if getattr(self, '_is_closing', False) or not self.mpv_player:
             return
         if not stream_url:
+            log_playback("_start_mpv_playback: stream_url está vacío", level="ERROR")
             self._on_play_error("URL de transmisión no disponible.")
             return
         try:
             self._current_stream_url = stream_url
-            media = self.vlc_instance.media_new(stream_url)
-            media.add_option(':network-caching=300')
             if not self.show_video:
-                media.add_option(':no-video')
-            self.vlc_player.set_media(media)
-            if self.audio_output_device:
                 try:
-                    self.vlc_player.audio_output_device_set(None, self.audio_output_device)
+                    self.mpv_player.vid = 'no'
                 except Exception:
                     pass
-            if sys.platform.startswith('win'):
-                if self.show_video:
-                    hwnd = self.video_panel.GetHandle()
-                    self.vlc_player.set_hwnd(hwnd)
-                else:
-                    self.vlc_player.set_hwnd(0)
-            self.vlc_player.audio_set_volume(self.slider_vol.GetValue())
-            self.vlc_player.play()
-            if hasattr(self, 'playback_speed'):
+            else:
                 try:
-                    self.vlc_player.set_rate(self.playback_speed)
+                    self.mpv_player.vid = 'auto'
                 except Exception:
                     pass
+
+            target_dev = resolve_mpv_audio_device(self.audio_output_device, player=self.mpv_player)
+            try:
+                self.mpv_player['audio-device'] = target_dev
+            except Exception as e_dev:
+                log_playback(f"_start_mpv_playback error asignando audio-device '{target_dev}': {e_dev}. Fallback a 'auto'", level="WARNING")
+                try:
+                    self.mpv_player['audio-device'] = 'auto'
+                except Exception:
+                    pass
+
+            vol = float(self.slider_vol.GetValue())
+            log_playback(f"_start_mpv_playback: Invocando play() con stream_url='{stream_url[:120]}...', vid={getattr(self.mpv_player, 'vid', None)}, vol={vol}")
+            self.mpv_player.play(stream_url)
+            try:
+                self.mpv_player.pause = False
+                self.mpv_player.volume = vol
+                if hasattr(self, 'playback_speed'):
+                    self.mpv_player.speed = float(self.playback_speed)
+            except Exception:
+                pass
+
             self.btn_play_pause.SetLabel("Pausar")
             tipo_str = "solo audio" if not self.show_video else "vídeo"
             self.lbl_status.SetLabel(f"Reproduciendo ({tipo_str}).")
             self.timer.Start(500)
-            # Precarga predictiva inmediata de las siguientes pistas (pipeline)
             self._trigger_prefetch_pipeline()
         except Exception as e:
+            log_playback(f"_start_mpv_playback excepción: {e}", level="ERROR", exc=e)
             self._on_play_error(str(e))
 
     def _on_play_error(self, err_msg):
+        log_playback(f"_on_play_error: {err_msg}", level="ERROR")
         if getattr(self, '_is_closing', False):
             return
         try:
@@ -451,29 +534,28 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
             pass
 
     def on_timer(self, event):
-        if not self.vlc_player:
+        if not self.mpv_player:
             return
 
-        # Verificar si terminó el vídeo
-        state = self.vlc_player.get_state()
-        if state == vlc.State.Ended:
-            self.on_track_finished()
-            return
+        cur_sec = None
+        tot_sec = None
+        try:
+            cur_sec = self.mpv_player.time_pos
+            tot_sec = self.mpv_player.duration
+        except Exception:
+            pass
 
-        length_ms = self.vlc_player.get_length()
-        time_ms = self.vlc_player.get_time()
-
-        if length_ms > 0 and time_ms >= 0:
+        if tot_sec and tot_sec > 0 and cur_sec is not None and cur_sec >= 0:
             if not self.is_dragging_slider:
-                pos_val = int((time_ms / length_ms) * 1000)
+                pos_val = int((cur_sec / tot_sec) * 1000)
                 self.slider_pos.SetValue(pos_val)
 
-            cur_sec = int(time_ms / 1000)
-            tot_sec = int(length_ms / 1000)
-            self.lbl_time.SetLabel(f"{formatear_duracion(cur_sec)} / {formatear_duracion(tot_sec)}")
+            c_sec = int(cur_sec)
+            t_sec = int(tot_sec)
+            self.lbl_time.SetLabel(f"{formatear_duracion(c_sec)} / {formatear_duracion(t_sec)}")
 
             # Asegurar pipeline de precarga activo
-            rem_sec = tot_sec - cur_sec
+            rem_sec = t_sec - c_sec
             if rem_sec <= 25:
                 self._trigger_prefetch_pipeline()
 
@@ -531,6 +613,10 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Dialog):
         else:
             if hasattr(self, 'timer') and self.timer.IsRunning():
                 self.timer.Stop()
+            if getattr(self, 'auto_close_on_finish', False):
+                accessibility.speak("Fin de la reproducción.")
+                wx.CallAfter(self.on_window_close, None)
+                return
             self.lbl_status.SetLabel("Fin de la lista de reproducción.")
             self.btn_play_pause.SetLabel("Reanudar")
             accessibility.speak("Fin de la lista de reproducción.")

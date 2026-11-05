@@ -9,6 +9,7 @@ import accessibility
 from favorites_manager import obtener_favoritos, detectar_tipo_elemento
 from player_dialog import VideoPreviewDialog
 from queue_dialog import ColaReproduccionDialog
+from config_manager import cargar_configuracion
 
 
 def _get_preview_dialog_cls():
@@ -20,7 +21,43 @@ def _get_preview_dialog_cls():
 
 
 class MainPlaybackMixin:
-    def on_previsualizar_video(self, event):
+    def lanzar_reproductor(self, videos_to_play, initial_index=0):
+        """Inicia el reproductor multimedia respetando la configuración modal o de ventana independiente."""
+        if not videos_to_play:
+            return
+        if hasattr(self, 'active_preview_dialog') and self.active_preview_dialog:
+            try:
+                old_dlg = self.active_preview_dialog
+                self.active_preview_dialog = None
+                old_dlg.on_cleanup()
+                old_dlg.Destroy()
+            except Exception:
+                pass
+
+        dlg = _get_preview_dialog_cls()(self, videos_to_play, initial_index=initial_index)
+        self.active_preview_dialog = dlg
+        cfg = getattr(self, 'config', {}) or cargar_configuracion()
+        modo_independiente = cfg.get('reproductor_ventana_independiente', True)
+
+        if modo_independiente:
+            dlg.Show()
+            dlg.Raise()
+        else:
+            self.Enable(False)
+            def _on_modal_close(evt):
+                try:
+                    self.Enable(True)
+                    self.Raise()
+                except Exception:
+                    pass
+                evt.Skip()
+            dlg.Bind(wx.EVT_CLOSE, _on_modal_close)
+            dlg.Show()
+            dlg.Raise()
+
+    def on_previsualizar_video(self, event, metodo_override=None):
+        if not self.verificar_libreria_ytdlp():
+            return
         # 1. Si hay elementos marcados con espacio (checkboxes), reproducir esos en secuencia continua
         marcados = [r for r in self.resultados if r.get('selected') and not r.get('is_playlist')]
         
@@ -50,65 +87,18 @@ class MainPlaybackMixin:
 
         titulo = videos_to_play[initial_idx].get('title', 'Vídeo')
         self.set_status(f"Abriendo reproductor continuo para '{titulo}'...", field=0, announce=False)
-        
-        dlg = _get_preview_dialog_cls()(self, videos_to_play, initial_index=initial_idx)
-        res = dlg.ShowModal()
-
-        wants_dl = getattr(dlg, 'wants_download', False)
-        dl_video = getattr(dlg, 'download_target_video', None)
-        dlg.Destroy()
-
-        if res == wx.ID_OK and wants_dl:
-            if dl_video:
-                self.cola_descargas = [dl_video]
-                self.total_cola = 1
-                self.indice_cola = 0
-                self.descargas_completadas = 0
-                self.descargas_fallidas = 0
-                self.btn_descargar.Enable(False)
-                self.btn_cancelar.Enable(True)
-                self.btn_buscar.Enable(False)
-                sel_format_idx = self.choice_formato.GetSelection()
-                formatos_map = {0: 'video_best', 1: 'audio_mp3_192', 2: 'audio_mp3_320', 3: 'audio_m4a'}
-                formato_str = formatos_map.get(sel_format_idx, 'video_best')
-                destino = getattr(self, 'destino_descarga_actual', self.destino_dir)
-                self._iniciar_siguiente_descarga_cola(formato_str, destino)
-            else:
-                self.on_btn_descargar(None)
-        else:
-            self.set_status("Reproductor cerrado.", field=0, announce=False)
+        self.lanzar_reproductor(videos_to_play, initial_index=initial_idx)
 
     def reproducir_toda_la_lista(self, event):
+        if not self.verificar_libreria_ytdlp():
+            return
         todos_videos = [r for r in self.resultados if not r.get('is_playlist') and not r.get('is_channel')]
         if not todos_videos:
             wx.MessageBox("No hay vídeos disponibles en la lista para reproducir.", "Lista vacía", wx.OK | wx.ICON_INFORMATION, self)
             return
 
         self.set_status(f"Iniciando reproducción continua de toda la lista ({len(todos_videos)} vídeos)...", field=0, announce=True)
-        dlg = _get_preview_dialog_cls()(self, todos_videos, initial_index=0)
-        res = dlg.ShowModal()
-
-        wants_dl = getattr(dlg, 'wants_download', False)
-        dl_video = getattr(dlg, 'download_target_video', None)
-        dlg.Destroy()
-
-        if res == wx.ID_OK and wants_dl:
-            if dl_video:
-                self.cola_descargas = [dl_video]
-                self.total_cola = 1
-                self.indice_cola = 0
-                self.descargas_completadas = 0
-                self.descargas_fallidas = 0
-                self.btn_descargar.Enable(False)
-                self.btn_cancelar.Enable(True)
-                self.btn_buscar.Enable(False)
-                sel_format_idx = self.choice_formato.GetSelection()
-                formatos_map = {0: 'video_best', 1: 'audio_mp3_192', 2: 'audio_mp3_320', 3: 'audio_m4a'}
-                formato_str = formatos_map.get(sel_format_idx, 'video_best')
-                destino = self.destino_dir
-                self._iniciar_siguiente_descarga_cola(formato_str, destino)
-            else:
-                self.on_btn_descargar(None)
+        self.lanzar_reproductor(todos_videos, initial_index=0)
 
     def agregar_a_cola_reproduccion(self, event=None, items=None):
         """Añade los elementos seleccionados o activos a la cola de reproducción secuencial."""
@@ -214,17 +204,7 @@ class MainPlaybackMixin:
         total = len(self.cola_reproduccion)
         self.set_status(f"Iniciando reproducción continua de la cola ({total} elementos)...", field=0, announce=True)
         idx_ini = max(0, min(initial_index, len(self.cola_reproduccion) - 1)) if self.cola_reproduccion else 0
-        dlg = _get_preview_dialog_cls()(self, list(self.cola_reproduccion), initial_index=idx_ini)
-        self.active_preview_dialog = dlg
-
-        if hasattr(dlg, 'ShowModal') and not hasattr(dlg, 'Show'):
-            try:
-                dlg.ShowModal()
-                self._procesar_descarga_desde_reproductor(dlg)
-            finally:
-                self.active_preview_dialog = None
-        else:
-            dlg.Show()
+        self.lanzar_reproductor(list(self.cola_reproduccion), initial_index=idx_ini)
 
     def vaciar_cola_reproduccion(self, event=None):
         """Vacía los elementos acumulados en la cola de reproducción secuencial."""

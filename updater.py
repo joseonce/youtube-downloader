@@ -18,7 +18,7 @@ from update_transaction import UPDATE_SCRIPT
 import wx
 import accessibility
 
-APP_VERSION = "1.6.2"
+APP_VERSION = "1.6.3"
 APP_NAME = "Descargador de YouTube"
 CHECK_UPDATE_URL = "https://raw.githubusercontent.com/joseonce/youtube-downloader/main/version.json"
 FALLBACK_UPDATE_URL = "https://buscaapps.com/youtube/version.json"
@@ -417,3 +417,70 @@ def manual_check_for_updates(parent_window):
             wx.CallAfter(_show_err)
 
     threading.Thread(target=_worker, daemon=True).start()
+
+
+def check_and_update_ytdlp_silently():
+    """
+    Comprueba y actualiza yt-dlp a la última versión Nightly en segundo plano,
+    de manera 100% transparente: sin notificaciones, sin diálogos y sin anuncios de voz.
+    Se ejecuta como máximo 1 vez cada 24 horas.
+    """
+    try:
+        from config_manager import load_config, save_config, get_bin_dir, get_app_data_dir, get_external_ytdlp_exe
+        from streaming import check_nightly_version, get_current_version, download_file_with_progress
+
+        cfg = load_config()
+        last_check = cfg.get('ultimo_check_ytdlp', 0)
+        now = time.time()
+        # 86400 segundos = 24 horas
+        if (now - last_check) < 86400:
+            return
+
+        cfg['ultimo_check_ytdlp'] = now
+        try:
+            save_config(cfg)
+        except Exception:
+            pass
+
+        info = check_nightly_version()
+        if not info or not info.get('version'):
+            return
+
+        v_nightly = info.get('version', '')
+        v_actual = get_current_version()
+        if v_nightly and v_actual and v_nightly == v_actual:
+            return
+
+        download_url = info.get('download_url')
+        if not download_url:
+            return
+
+        current_exe = get_external_ytdlp_exe()
+        dest_exe = None
+        if current_exe and os.path.isfile(current_exe):
+            dest_dir = os.path.dirname(current_exe)
+            if os.access(dest_dir, os.W_OK):
+                dest_exe = current_exe
+
+        if not dest_exe:
+            bin_dir = get_bin_dir()
+            if os.path.exists(bin_dir) and os.access(bin_dir, os.W_OK):
+                dest_exe = os.path.join(bin_dir, 'yt-dlp.exe')
+            else:
+                dest_exe = os.path.join(get_app_data_dir(), 'yt-dlp.exe')
+
+        # Descargar a temporal y reemplazar atómicamente de forma silenciosa
+        download_file_with_progress(download_url, dest_exe, progress_callback=None)
+    except Exception:
+        pass
+
+
+def start_background_ytdlp_update():
+    """Inicia el chequeo y actualización de yt-dlp en segundo plano con una pausa inicial prudente."""
+    def _worker():
+        # Pausa de 30 segundos tras el arranque de la app para no interferir con la sesión
+        time.sleep(30.0)
+        check_and_update_ytdlp_silently()
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
