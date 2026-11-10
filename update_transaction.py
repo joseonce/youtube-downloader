@@ -57,10 +57,19 @@ function Open-App([bool]$CheckReady) {
     $env:PYINSTALLER_RESET_ENVIRONMENT = '1'
     if ($CheckReady) { $env:YT_UPDATE_READY = $ready } else { Remove-Item Env:YT_UPDATE_READY -ErrorAction SilentlyContinue }
     $exe = Join-Path $target $c.entry
+    $appArgs = @()
+    if ($CheckReady) {
+        $appArgs += @('--update-ready', $ready)
+    }
     if ($c.python) {
-        $p = Start-Process -FilePath $c.python -ArgumentList ('"' + $exe + '"') -WorkingDirectory $target -WindowStyle Hidden -PassThru
+        $pyArgs = @($exe) + $appArgs
+        $p = Start-Process -FilePath $c.python -ArgumentList $pyArgs -WorkingDirectory $target -WindowStyle Hidden -PassThru
     } else {
-        $p = Start-Process -FilePath $exe -WorkingDirectory $target -PassThru
+        if ($appArgs.Count -gt 0) {
+            $p = Start-Process -FilePath $exe -ArgumentList $appArgs -WorkingDirectory $target -PassThru
+        } else {
+            $p = Start-Process -FilePath $exe -WorkingDirectory $target -PassThru
+        }
     }
     return $p
 }
@@ -141,7 +150,12 @@ public class WavPlay {
     $process = Open-App $true
     $limit = [DateTime]::UtcNow.AddSeconds(60)
     while (-not (Test-Path -LiteralPath $ready)) {
-        if ($process.HasExited -or [DateTime]::UtcNow -gt $limit) { throw 'La nueva version no confirmo el arranque.' }
+        if ($process.HasExited) {
+            Start-Sleep -Milliseconds 250
+            if (Test-Path -LiteralPath $ready) { break }
+            throw 'La nueva version no confirmo el arranque.'
+        }
+        if ([DateTime]::UtcNow -gt $limit) { throw 'La nueva version no confirmo el arranque dentro del tiempo limite.' }
         Start-Sleep -Milliseconds 250
     }
     $committed = $true

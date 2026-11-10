@@ -14,6 +14,31 @@ import sound_manager
 from ui import MainFrame
 
 
+def confirm_update_ready():
+    """Confirmar al instalador de la actualización que la aplicación ha arrancado correctamente."""
+    ready_targets = []
+    env_ready = os.environ.pop("YT_UPDATE_READY", None)
+    if env_ready:
+        ready_targets.append(env_ready)
+
+    args = sys.argv[1:]
+    for i, arg in enumerate(args):
+        if arg == "--update-ready" and i + 1 < len(args):
+            ready_targets.append(args[i + 1])
+        elif arg.startswith("--update-ready="):
+            ready_targets.append(arg.split("=", 1)[1])
+
+    for target in ready_targets:
+        clean_target = target.strip('\'"')
+        if clean_target:
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(clean_target)), exist_ok=True)
+                with open(clean_target, "w", encoding="utf-8") as f:
+                    f.write("ready")
+            except Exception:
+                pass
+
+
 class YouTubeApp(wx.App):
     def OnInit(self):
         # Configurar idioma en castellano (español) para wxWidgets / wxPython
@@ -52,18 +77,13 @@ class YouTubeApp(wx.App):
         self.frame = MainFrame()
         self.SetTopWindow(self.frame)
         self.frame.Show(True)
+        confirm_update_ready()
         wx.CallAfter(self._confirm_update_ready)
         return True
 
     def _confirm_update_ready(self):
         """Confirmar al instalador que la interfaz ya procesa eventos."""
-        ready = os.environ.pop("YT_UPDATE_READY", None)
-        if ready:
-            try:
-                with open(ready, "w", encoding="utf-8") as stream:
-                    stream.write("ready")
-            except OSError:
-                pass
+        confirm_update_ready()
 
     def OnExit(self):
         try:
@@ -83,6 +103,7 @@ class YouTubeApp(wx.App):
 
 
 def main():
+    confirm_update_ready()
     app = YouTubeApp(False)
     app.MainLoop()
 

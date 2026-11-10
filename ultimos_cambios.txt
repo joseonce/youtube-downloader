@@ -33,6 +33,10 @@ NOVEDADES Y MEJORAS EN LA VERSIÓN 1.6.4:
    - Opciones en Preferencias: "Incrustada en archivo", "Incrustada y archivo .jpg externo",
      "Solo archivo .jpg externo" o "Sin carátula".
 
+6. Robustecimiento del Sistema de Actualización Transaccional:
+   - Señalización multicanal de arranque de la aplicación (argumentos de línea de comandos y variables de entorno).
+   - Eliminación de posibles bucles de reversión preventiva durante el relevo de versión.
+
 ========================================================================
 NOVEDADES ANTERIORES EN LA VERSIÓN 1.6.3:
 ========================================================================
