@@ -4,6 +4,25 @@ Todas las novedades, mejoras y correcciones notables de este proyecto quedan doc
 
 ---
 
+## [1.6.4] - 2026-11-10
+
+### Añadido y Mejorado
+- **Búsqueda nativa y extracción completa de álbumes en YouTube Music**:
+  - Consulta directa al endpoint de álbumes de Innertube (`/youtubei/v1/browse`) utilizando el identificador nativo de álbum (`browseId` / `MPREb_...`), devolviendo el repertorio íntegro de pistas numeradas en orden con duración y metadatos nativos.
+  - Resolución inteligente por artista y nombre de álbum en búsquedas de texto cuando el identificador directo no está presente.
+- **Menú contextual inteligente y adaptativo**:
+  - Al abrir el menú contextual sobre cualquier pista de YouTube Music (en búsqueda o favoritos), se despliegan automáticamente opciones especializadas: *Canciones del mismo artista*, *Canciones del mismo álbum* y *Copiar enlace del artista*, en lugar de opciones no procedentes como vídeos del canal.
+- **Paginación continua fluida (25 resultados exactos en YouTube Music)**:
+  - Integración transparente con las continuaciones de Innertube, garantizando que YouTube Music entregue siempre la cantidad configurada en preferencias (25 resultados) y habilitando la paginación continua hacia adelante con *Siguientes resultados* (`Alt + S`).
+  - Deduplicación automática por `videoId` para evitar pistas duplicadas en listas de resultados.
+- **Columnas adaptativas y dinámicas para favoritos mixtos**:
+  - En listas con vídeos y canciones combinados, las columnas se adaptan dinámicamente a `Canal / Artista` y `Detalle / Álbum`.
+  - Recálculo automático instantáneo al eliminar elementos: si se eliminan todas las canciones, vuelve automáticamente a modo vídeo (`Canal`, `Visitas`), y viceversa.
+- **Opciones avanzadas de carátula en descargas de audio**:
+  - Nuevo selector de carátula en Preferencias: *Incrustada en archivo*, *Incrustada y archivo .jpg externo*, *Solo archivo .jpg externo* o *Sin carátula*.
+
+---
+
 ## [1.6.3] - 2026-11-05
 
 ### Añadido

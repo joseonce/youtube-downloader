@@ -16,6 +16,7 @@ from streaming import obtener_url_streaming, precargar_stream_en_segundo_plano
 from media_utils import formatear_duracion, formatear_visitas, limpiar_extension_titulo
 from ui_mpv import get_mpv_module, init_mpv_env, create_mpv_player, log_playback, resolve_mpv_audio_device
 from player_controls_mixin import PlayerControlsMixin, MPVPlayerCompatFacade
+from favorites_manager import es_favorito
 
 
 class ProgressBarSlider(wx.Slider):
@@ -61,6 +62,7 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Frame):
         self.show_video = self.reproducir_con_video
         self.independent_window = cfg.get('reproductor_ventana_independiente', True)
         self.auto_close_on_finish = cfg.get('cerrar_reproductor_al_finalizar', False)
+        self.normalize_volume = cfg.get('normalizar_volumen_reproductor', False)
         self.playback_speed = float(cfg.get('velocidad_reproduccion', 1.0))
         self.playback_speed = round(min(2.0, max(0.5, self.playback_speed)), 1)
         self.audio_output_device = cfg.get('audio_output_device', '')
@@ -115,11 +117,7 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Frame):
         row_top = wx.BoxSizer(wx.HORIZONTAL)
         self.lbl_info = wx.StaticText(self, label="")
         self.lbl_info.SetFont(self.lbl_info.GetFont().Bold())
-        row_top.Add(self.lbl_info, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-
-        self.btn_fav = wx.Button(self, label="Favorito", size=(130, -1))
-        self.btn_fav.Bind(wx.EVT_BUTTON, self.on_toggle_favorito)
-        row_top.Add(self.btn_fav, 0, wx.ALIGN_CENTER_VERTICAL)
+        row_top.Add(self.lbl_info, 1, wx.ALIGN_CENTER_VERTICAL, 8)
         sizer.Add(row_top, 0, wx.ALL | wx.EXPAND, 8)
 
         # Lienzo nativo de vídeo (Panel con fondo negro sobre el que dibuja mpv)
@@ -218,6 +216,11 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Frame):
         self.btn_download_current.Bind(wx.EVT_BUTTON, self.on_download_click)
         sizer_controls.Add(self.btn_download_current, 0, wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 6)
 
+        self.btn_fav = wx.Button(box_controls, label="Añadir a favoritos (F)")
+        self.btn_fav.SetToolTip("Añadir o eliminar este vídeo de favoritos (F o B)")
+        self.btn_fav.Bind(wx.EVT_BUTTON, self.on_toggle_favorito)
+        sizer_controls.Add(self.btn_fav, 0, wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 6)
+
         self.btn_copy_url = wx.Button(box_controls, label="Copiar enlace (Ctrl+Shift+C)")
         self.btn_copy_url.Bind(wx.EVT_BUTTON, self.copiar_enlace_actual)
         sizer_controls.Add(self.btn_copy_url, 0, wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, 6)
@@ -290,10 +293,11 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Frame):
                 self.btn_queue.Enable(hay_q)
 
             vid_id_or_url = self.video.get('url') or self.video.get('id', '')
-            if es_favorito(vid_id_or_url):
-                self.btn_fav.SetLabel("En Favoritos")
-            else:
-                self.btn_fav.SetLabel("+ Favorito")
+            if hasattr(self, 'btn_fav') and self.btn_fav:
+                if es_favorito(vid_id_or_url):
+                    self.btn_fav.SetLabel("Eliminar de favoritos (F)")
+                else:
+                    self.btn_fav.SetLabel("Añadir a favoritos (F)")
         except (RuntimeError, Exception):
             pass
 
@@ -315,6 +319,7 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Frame):
                     self.mpv_player.vid = 'auto'
                 self.mpv_player.volume = float(self.initial_vol)
                 self.mpv_player.speed = float(self.playback_speed)
+                self._apply_audio_filters()
             except Exception:
                 pass
             self._setup_mpv_observers()
@@ -469,6 +474,26 @@ class VideoPreviewDialog(PlayerControlsMixin, wx.Frame):
                     self.mpv_player['audio-device'] = 'auto'
                 except Exception:
                     pass
+
+    def set_normalize_volume(self, enabled):
+        """Aplica dinámicamente en caliente la normalización de volumen."""
+        self.normalize_volume = bool(enabled)
+        self._apply_audio_filters()
+
+    def _apply_audio_filters(self):
+        """Configura o elimina los filtros de audio de MPV (normalización de volumen EBU R128)."""
+        if not self.mpv_player:
+            return
+        try:
+            if self.normalize_volume:
+                # Filtro de normalización de sonoridad estándar (EBU R128)
+                self.mpv_player['af'] = 'lavfi=[loudnorm=I=-16:TP=-1.5:LRA=11]'
+                log_playback("Filtro de audio MPV activado: normalización de volumen EBU R128 (loudnorm)")
+            else:
+                self.mpv_player['af'] = ''
+                log_playback("Filtro de audio MPV desactivado: normalización de volumen apagada")
+        except Exception as e:
+            log_playback(f"Error al configurar filtros de audio en MPV: {e}", level="WARNING")
 
     def _start_mpv_playback(self, stream_url):
         if getattr(self, '_is_closing', False) or not self.mpv_player:

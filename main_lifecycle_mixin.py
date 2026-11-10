@@ -328,14 +328,62 @@ class MainLifecycleMixin:
         mapa = {
             0: "Vídeos",
             1: "Canales",
-            2: "Listas"
+            2: "Listas",
+            3: "YouTube Music"
         }
         anuncio = mapa.get(sel, tipo_str)
+
+        # Alternar opciones de formato: en YouTube Music desaparece MP4 y por defecto queda MP3 320
+        self.actualizar_modo_formato(solo_audio=(sel == 3))
+
         # Si un lector de pantalla (NVDA, JAWS) está activo, Windows ya vocaliza nativamente
         # el elemento seleccionado en el ComboBox al pulsar las flechas. Solo llamamos a speak()
         # si no hay lector de pantalla activo para evitar que se repita dos veces.
         if not accessibility.is_screen_reader_active():
             accessibility.speak(anuncio)
+
+    def actualizar_modo_formato(self, solo_audio=False):
+        """
+        Alterna las opciones disponibles en choice_formato:
+        - Si solo_audio=True (YouTube Music): desaparece la opción MP4 y por defecto
+          queda seleccionado MP3 320 si no había otro formato de audio seleccionado.
+        - Si solo_audio=False: reincorpora la opción MP4 y restablece la selección coherente.
+        """
+        if not hasattr(self, 'choice_formato') or not self.choice_formato:
+            return
+
+        from config_manager import FORMATOS_TODOS, FORMATOS_SOLO_AUDIO
+
+        cur_key = getattr(self, '_current_format_key', None)
+        if not cur_key:
+            sel_idx = self.choice_formato.GetSelection()
+            if self.choice_formato.GetCount() == len(FORMATOS_SOLO_AUDIO):
+                cur_key = FORMATOS_SOLO_AUDIO[sel_idx][0] if 0 <= sel_idx < len(FORMATOS_SOLO_AUDIO) else 'audio_mp3_320'
+            else:
+                cur_key = FORMATOS_TODOS[sel_idx][0] if 0 <= sel_idx < len(FORMATOS_TODOS) else 'video_best'
+
+        if solo_audio:
+            # En modo YouTube Music, si estaba en MP4 (o no había audio), predeterminar MP3 320
+            target_key = 'audio_mp3_320' if cur_key == 'video_best' else cur_key
+            choices = [f[1] for f in FORMATOS_SOLO_AUDIO]
+            self.choice_formato.Set(choices)
+            sel_idx = 1  # 1 es audio_mp3_320 en FORMATOS_SOLO_AUDIO
+            for idx, (k, _) in enumerate(FORMATOS_SOLO_AUDIO):
+                if k == target_key:
+                    sel_idx = idx
+                    break
+            self.choice_formato.SetSelection(sel_idx)
+            self._current_format_key = target_key
+        else:
+            choices = [f[1] for f in FORMATOS_TODOS]
+            self.choice_formato.Set(choices)
+            sel_idx = 0
+            for idx, (k, _) in enumerate(FORMATOS_TODOS):
+                if k == cur_key:
+                    sel_idx = idx
+                    break
+            self.choice_formato.SetSelection(sel_idx)
+            self._current_format_key = cur_key
 
     def _init_shortcuts(self):
         """Tabla de aceleradores de teclado globales."""

@@ -21,6 +21,7 @@ DEFAULT_CONFIG = {
     'aleatorio_reproductor': False,
     'reproducir_con_video': True,
     'velocidad_reproduccion': 1.0,
+    'normalizar_volumen_reproductor': False,
     'reproductor_ventana_independiente': True,
     'cerrar_reproductor_al_finalizar': False,
     'audio_output_device': '',      # Identificador GUID de dispositivo libvlc ('', o {0.0.0...})
@@ -31,7 +32,8 @@ DEFAULT_CONFIG = {
     'sonido_espera_descarga': True,  # Sonido de espera periódico durante la descarga
     'modo_locuciones': 'auto',       # 'auto' (solo con lector activo), 'siempre', 'desactivado'
     'metodo_extraccion_ytdlp': 'rapido', # 'rapido', 'extendido', 'default'
-    'ultimo_check_ytdlp': 0         # Timestamp del último chequeo silencioso
+    'ultimo_check_ytdlp': 0,        # Timestamp del último chequeo silencioso
+    'caratula_modo': 'incrustada',   # 'incrustada', 'incrustada_y_jpg', 'solo_jpg', 'ninguna'
 }
 
 ENGINES_MAP = {
@@ -45,8 +47,34 @@ FORMATOS_MAP = {
     0: 'video_best',
     1: 'audio_mp3_192',
     2: 'audio_mp3_320',
-    3: 'audio_m4a'
+    3: 'audio_m4a',
+    4: 'audio_flac',
+    5: 'audio_wav',
 }
+
+FORMATOS_TODOS = [
+    ('video_best', "Vídeo (Mejor calidad MP4)"),
+    ('audio_mp3_192', "Audio MP3 (192 kbps - Estándar)"),
+    ('audio_mp3_320', "Audio MP3 (320 kbps - Alta fidelidad)"),
+    ('audio_m4a', "Audio M4A (Original AAC)"),
+    ('audio_flac', "Audio FLAC (Sin pérdida)"),
+    ('audio_wav', "Audio WAV (PCM sin comprimir)"),
+]
+
+FORMATOS_SOLO_AUDIO = [
+    ('audio_mp3_192', "Audio MP3 (192 kbps - Estándar)"),
+    ('audio_mp3_320', "Audio MP3 (320 kbps - Alta fidelidad)"),
+    ('audio_m4a', "Audio M4A (Original AAC)"),
+    ('audio_flac', "Audio FLAC (Sin pérdida)"),
+    ('audio_wav', "Audio WAV (PCM sin comprimir)"),
+]
+
+MODOS_CARATULA = [
+    ('incrustada', "Incrustada en el archivo de audio"),
+    ('incrustada_y_jpg', "Incrustada y archivo .jpg"),
+    ('solo_jpg', "Solo archivo .jpg"),
+    ('ninguna', "Sin carátula"),
+]
 
 METODOS_EXTRACCION = {
     'rapido': {

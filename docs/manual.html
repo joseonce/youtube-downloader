@@ -205,7 +205,7 @@
       <ul>
         <li><a href="#carpetas">1. Estructura de Carpetas de la Aplicación</a></li>
         <li><a href="#busqueda">2. Búsqueda de Contenidos</a></li>
-        <li><a href="#tipos-busqueda">3. Tipos de Búsqueda: Vídeos, Canales y Listas</a></li>
+        <li><a href="#tipos-busqueda">3. Tipos de Búsqueda: Vídeos, Canales, Listas y YouTube Music</a></li>
         <li><a href="#plataformas">4. Plataformas Multimedia Soportadas</a></li>
         <li><a href="#reproductor">5. Reproducción Multimedia Continua e Integrada</a></li>
         <li><a href="#descargas">6. Descarga de Archivos y Formatos</a></li>
@@ -242,12 +242,21 @@
     </section>
 
     <section id="tipos-busqueda">
-      <h2>3. Tipos de Búsqueda: Vídeos, Canales y Listas</h2>
+      <h2>3. Tipos de Búsqueda: Vídeos, Canales, Listas y YouTube Music</h2>
       <p>Por defecto, la aplicación siempre inicia lista para buscar en <strong>YouTube</strong> y con el tipo de búsqueda en <strong>Vídeos</strong>. El usuario puede alternar el tipo de búsqueda en el selector <strong>Tipo</strong> (<kbd>Alt + I</kbd>):</p>
       <ul>
         <li><strong>Vídeos</strong> <em>(Predeterminado)</em>: Muestra los vídeos encontrados según el criterio por defecto de yt-dlp, con su título, canal, duración e identificador.</li>
         <li><strong>Canales</strong>: Encuentra canales y creadores de contenido, mostrando su nombre, identificador, suscriptores y, si está disponible, el número de vídeos que contiene (al igual que las listas de reproducción). Al pulsar <kbd>Enter</kbd> o doble clic en un canal, se cargarán de inmediato todos los vídeos subidos por dicho canal.</li>
         <li><strong>Listas de reproducción</strong>: Localiza listas temáticas indicando el número de vídeos incluidos. Al pulsar <kbd>Enter</kbd> o doble clic, se mostrarán todos los vídeos de la lista.</li>
+        <li><strong>YouTube Music</strong>: Busca canciones y pistas directamente en el catálogo de YouTube Music (<code>music.youtube.com</code>). Al seleccionar este modo:
+          <ul>
+            <li>El formato <strong>Vídeo (MP4)</strong> desaparece del selector de formatos.</li>
+            <li>Se selecciona por defecto <strong>Audio MP3 (320 kbps - Alta fidelidad)</strong> a menos que se elija otro formato de audio.</li>
+            <li>Las descargas se guardan automáticamente dentro de la subcarpeta raíz <code>musica/</code> de la carpeta de descargas configurada (<code>&lt;destino&gt;/musica/</code>).</li>
+            <li><strong>Columnas musicales adaptativas</strong>: La tabla de resultados reorganiza sus columnas dinámicamente mostrando <em>Título</em>, <em>Artista</em>, <em>Álbum</em> (junto al año si está disponible) y <em>Duración</em>. El lector de pantalla anuncia cada valor correspondientemente con <kbd>Alt + Flechas</kbd>. Al regresar a búsquedas de vídeo convencionales, se restablecen las columnas originales (<em>Título</em>, <em>Canal</em>, <em>Duración</em>, <em>Visitas</em>).</li>
+            <li><strong>Menú contextual adaptativo</strong>: Al pulsar la tecla <kbd>Aplicaciones</kbd> o clic secundario sobre una pista de YouTube Music, el menú contextual muestra opciones específicas para música: <em>Canciones del mismo artista</em>, <em>Canciones del mismo álbum</em> y <em>Copiar enlace del artista</em>, sustituyendo las opciones genéricas de canal y vídeo.</li>
+          </ul>
+        </li>
       </ul>
     </section>
 
@@ -291,15 +300,15 @@
         <li>Marca los elementos que desees en la lista con <kbd>Espacio</kbd> (o pulsa <kbd>Ctrl + A</kbd> para todos).</li>
         <li>Elige el formato de salida (<kbd>Alt + F</kbd>):
           <ul>
-            <li><strong>Vídeo (Mejor calidad MP4)</strong>: Vídeo a máxima resolución con audio integrado.</li>
+            <li><strong>Vídeo (Mejor calidad MP4)</strong>: Vídeo a máxima resolución con audio integrado (oculto en modo YouTube Music).</li>
             <li><strong>Audio MP3 (192 kbps - Estándar)</strong>: Audio MP3 ligero y equilibrado.</li>
-            <li><strong>Audio MP3 (320 kbps - Alta fidelidad)</strong>: Máxima calidad estéreo MP3.</li>
+            <li><strong>Audio MP3 (320 kbps - Alta fidelidad)</strong>: Máxima calidad estéreo MP3 (por defecto en YouTube Music).</li>
             <li><strong>Audio M4A (Original AAC)</strong>: Sonido directo original sin recodificar.</li>
             <li><strong>Audio FLAC (Sin pérdida)</strong>: Calidad de estudio sin pérdida (Free Lossless Audio Codec).</li>
             <li><strong>Audio WAV (PCM sin comprimir)</strong>: Formato de audio puro de máxima fidelidad.</li>
           </ul>
         </li>
-        <li>Pulsa el botón <strong>Descargar selección</strong> (<kbd>Alt + D</kbd> o <kbd>Ctrl + D</kbd>).</li>
+        <li>Pulsa el botón <strong>Descargar selección</strong> (<kbd>Alt + D</kbd> o <kbd>Ctrl + D</kbd>). En el modo YouTube Music, los archivos se descargarán automáticamente en la subcarpeta <code>musica/</code> de la ruta de descarga.</li>
         <li><strong>Organización en subcarpetas</strong>: Si hay más de una descarga seleccionada (varios vídeos marcados por lotes), la aplicación preguntará el nombre de la subcarpeta para organizarlos (sugiriendo automáticamente el nombre de la lista si pertenecen a una lista de reproducción o de favoritos, o el nombre del canal si no pertenecen a una lista). Si descargas un único elemento, se guardará directamente en la carpeta principal sin abrir este diálogo. Deja el campo vacío si prefieres guardarlos directamente en la carpeta principal.</li>
       </ol>
     
@@ -325,6 +334,13 @@
         <li><strong>Añadir a Favoritos</strong> (<kbd>Ctrl + B</kbd>): Añade el elemento seleccionado a la lista <em>Principal</em> o a una lista temática personalizada (ej. <em>Música Rock</em>, <em>Flamenco</em>, etc.).</li>
         <li><strong>Ver Favoritos</strong> (<kbd>Ctrl + H</kbd>): Carga y muestra los elementos guardados en la tabla.</li>
         <li><strong>Reproducción Continua de Favoritos</strong> (<kbd>Ctrl + Shift + P</kbd>): Reproduce de corrido toda tu colección sin pausas.</li>
+        <li><strong>Soporte para Canciones de YouTube Music y Listas Mixtas</strong>:
+          <ul>
+            <li>Puedes guardar pistas de YouTube Music en cualquier lista de favoritos preservando su artista, álbum y año. Cada ítem muestra su prefijo accesible (<kbd>[Vídeo]</kbd>, <kbd>[Canción]</kbd>, <kbd>[Canal]</kbd> o <kbd>[Lista]</kbd>).</li>
+            <li><strong>Columnas adaptativas en Favoritos</strong>: Si la lista contiene solo canciones de YouTube Music, las columnas adoptan el formato musical (<em>Título</em>, <em>Artista</em>, <em>Álbum</em>, <em>Duración</em>). Si contiene solo vídeos, adoptan el formato estándar (<em>Título</em>, <em>Canal</em>, <em>Duración</em>, <em>Visitas</em>). Si la lista es mixta (vídeos y música), las columnas se unifican inteligentemente a: <em>Título</em>, <em>Canal / Artista</em>, <em>Duración</em> y <em>Detalle / Álbum</em>. Además, al eliminar o mover elementos que alteren la composición de la lista (por ejemplo, borrar la única canción de una lista con 20 vídeos), las cabeceras y celdas se recalculan y actualizan automáticamente en tiempo real.</li>
+            <li><strong>Menú contextual individual</strong>: Al pulsar <kbd>Aplicaciones</kbd> en una lista mixta, cada elemento abre su menú contextual correspondiente (menú musical para canciones y menú estándar para vídeos).</li>
+          </ul>
+        </li>
         <li><strong>Eliminar de Favoritos y gestión de listas</strong> (<kbd>Supr</kbd>): Puedes pulsar la tecla <kbd>Supr</kbd> sobre cualquier elemento para eliminarlo de favoritos, o sobre una lista temática para eliminar la lista completa <strong>únicamente si está vacía</strong> (con confirmación según tus preferencias). Si la lista contiene elementos, la aplicación te avisará para moverlos o eliminarlos antes de borrarla, protegiendo así tus contenidos.</li>
         <li><strong>Ficheros independientes para compartir</strong>: Cada lista de favoritos se guarda en un fichero <code>.json</code> individual dentro de <code>config/favoritos/</code> (ej. <code>Rock.json</code>, <code>Flamenco.json</code>). Puedes pasar a un amigo únicamente tu lista de rock y a otro tu lista de flamenco según sus preferencias musicales sin necesidad de compartir toda tu lista. Tu amigo solo tiene que copiar el fichero en su carpeta <code>config/favoritos/</code>.</li>
       </ul>
@@ -336,6 +352,7 @@
       <ul>
         <li><strong>Carpeta de destino predeterminada</strong>: Carpeta donde se guardarán las descargas.</li>
         <li><strong>Formato de salida predeterminado</strong>: MP4, MP3 192k, MP3 320k o M4A.</li>
+        <li><strong>Carátula en descargas de audio y YouTube Music</strong>: Selector mediante botones de opción con cuatro alternativas: <em>Incrustada en el archivo de audio</em> (por defecto), <em>Incrustada y archivo .jpg</em>, <em>Solo archivo .jpg</em> o <em>Sin carátula</em>. Los metadatos ID3 oficiales (artista, álbum, título, pista y año) se incrustan automáticamente en las descargas de audio.</li>
         <li><strong>Cantidad de resultados por búsqueda</strong>: 25 por defecto (configurable de 1 a 500).</li>
         <li><strong>Abrir carpeta de descargas automáticamente al finalizar</strong>: Abre inmediatamente la carpeta en el Explorador de Windows al completarse la descarga.</li>
         <li><strong>Preguntar si abrir la carpeta al finalizar la descarga (cuadro Sí / No)</strong>: Si la apertura automática está desmarcada, al terminar la descarga se mostrará un cuadro de diálogo accesible preguntando si deseas abrir la carpeta en ese momento.</li>

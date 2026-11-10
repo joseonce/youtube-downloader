@@ -1,9 +1,41 @@
 ========================================================================
-DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.6.3)
-Fecha: 5 de Noviembre de 2026
+DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.6.4)
+Fecha: 10 de Noviembre de 2026
 ========================================================================
 
-NOVEDADES EN LA VERSIÓN 1.6.3:
+NOVEDADES EN LA VERSIÓN 1.6.4:
+
+1. Búsqueda y Resolución Completa de Álbumes en YouTube Music:
+   - Consulta nativa al endpoint de álbumes de Innertube (/youtubei/v1/browse)
+     mediante el identificador directo de álbum (browseId / MPREb_...).
+   - Obtención de todas las pistas ordenadas por número de pista (10, 12, 18, 20...),
+     con duración, título, artista y metadatos nativos.
+   - Resolución automática por artista y nombre de álbum en búsquedas de texto.
+
+2. Menú Contextual Inteligente y Adaptativo para YouTube Music:
+   - Al pulsar menú contextual sobre canciones de YouTube Music, se muestran opciones
+     acordes: "Canciones del mismo artista", "Canciones del mismo álbum" y
+     "Copiar enlace del artista", eliminando opciones no procedentes como vídeos del canal.
+
+3. Paginación Continua Fluida (25 Resultados Exactos en YouTube Music):
+   - Gestión automática de continuaciones en Innertube para entregar exactamente
+     la cantidad configurada en preferencias (25 resultados) y habilitar la
+     paginación continua hacia adelante mediante "Siguientes resultados" (Alt+S).
+   - Deduplicación por videoId para evitar temas repetidos en búsquedas de canciones.
+
+4. Columnas Adaptativas y Dinámicas para Listas Mixtas:
+   - En listas de favoritos con vídeos y canciones combinados, las columnas se
+     adaptan a "Canal / Artista" y "Detalle / Álbum".
+   - Recálculo dinámico automático al eliminar pistas: si se eliminan todas las
+     canciones, las columnas regresan a modo vídeo ("Canal", "Visitas"), y viceversa.
+
+5. Opciones Avanzadas de Carátula en Descargas de Audio:
+   - Opciones en Preferencias: "Incrustada en archivo", "Incrustada y archivo .jpg externo",
+     "Solo archivo .jpg externo" o "Sin carátula".
+
+========================================================================
+NOVEDADES ANTERIORES EN LA VERSIÓN 1.6.3:
+========================================================================
 
 1. Extracción de Transcripciones a Texto (.txt) y Traducción Multilingüe:
    - Implementada como gran novedad la extracción de subtítulos y transcripciones

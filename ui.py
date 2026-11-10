@@ -33,7 +33,10 @@ from config_manager import (
     abrir_atajos_teclado,
     cargar_configuracion,
     guardar_configuracion,
-    ENGINES_MAP
+    ENGINES_MAP,
+    FORMATOS_TODOS,
+    FORMATOS_SOLO_AUDIO,
+    FORMATOS_MAP
 )
 
 from favorites_manager import (
@@ -233,7 +236,7 @@ class MainFrame(
         lbl_tipo = wx.StaticText(box_search, label="T&ipo:")
         sizer_search.Add(lbl_tipo, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.TOP | wx.BOTTOM, 6)
 
-        tipos_busqueda = ["Vídeos", "Canales", "Listas de reproducción"]
+        tipos_busqueda = ["Vídeos", "Canales", "Listas de reproducción", "YouTube Music"]
         self.choice_tipo_busqueda = wx.Choice(box_search, choices=tipos_busqueda)
         self.choice_tipo_busqueda.SetSelection(0)
         self.choice_tipo_busqueda.Bind(wx.EVT_CHOICE, self.on_tipo_busqueda_changed)
@@ -290,17 +293,11 @@ class MainFrame(
         lbl_fmt = wx.StaticText(box_actions, label="&Formato:")
         row_ctrls.Add(lbl_fmt, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
 
-        formatos_opciones = [
-            "Vídeo (Mejor calidad MP4)",
-            "Audio MP3 (192 kbps - Estándar)",
-            "Audio MP3 (320 kbps - Alta fidelidad)",
-            "Audio M4A (Original AAC)",
-            "Audio FLAC (Sin pérdida)",
-            "Audio WAV (PCM sin comprimir)"
-        ]
+        formatos_opciones = [f[1] for f in FORMATOS_TODOS]
         self.choice_formato = wx.Choice(box_actions, choices=formatos_opciones)
         saved_fmt = min(self.config.get('formato_idx', 0), len(formatos_opciones) - 1)
         self.choice_formato.SetSelection(saved_fmt)
+        self._current_format_key = FORMATOS_TODOS[saved_fmt][0]
         self.choice_formato.Bind(wx.EVT_CHOICE, self.on_formato_changed)
         row_ctrls.Add(self.choice_formato, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
 
@@ -420,14 +417,16 @@ class MainFrame(
             return 'channel', '[Canal]', getattr(self, 'IMG_IDX_CHANNEL', 0)
         elif tipo == 'playlist':
             return 'playlist', '[Lista]', getattr(self, 'IMG_IDX_PLAYLIST', 0)
+        elif tipo == 'music' or item.get('is_music'):
+            return 'music', '[Canción]', getattr(self, 'IMG_IDX_VIDEO', 0)
         else:
             return 'video', '[Vídeo]', getattr(self, 'IMG_IDX_VIDEO', 0)
 
     def _get_item_display_title_and_image(self, item: dict, is_fav_view: bool = False):
         """
         Calcula el texto para la columna 0 y el índice del icono de imagen.
-        - En favoritos: incluye la etiqueta accesible '[Vídeo] ', '[Canal] ' o '[Lista] ' para que los lectores de pantalla
-          y personas videntes identifiquen inmediatamente el tipo de contenido guardado.
+        - En favoritos: incluye la etiqueta accesible '[Vídeo] ', '[Canción] ', '[Canal] ' o '[Lista] '
+          para que los lectores de pantalla y personas videntes identifiquen inmediatamente el tipo de contenido guardado.
         - Si está marcado: añade 'Marcado - '.
         """
         tipo, tag, img_idx = self._get_item_type_and_image(item)
@@ -435,10 +434,10 @@ class MainFrame(
 
         # Limpiar prefijos redundantes para evitar acumulaciones
         title_clean = raw_title
-        for p in ('Marcado - ', '[Vídeo] ', '[Canal] ', '[Lista] '):
+        for p in ('Marcado - ', '[Vídeo] ', '[Canción] ', '[Canal] ', '[Lista] '):
             if title_clean.startswith(p):
                 title_clean = title_clean[len(p):]
-        for s in (' [Vídeo]', ' [Canal]', ' [Lista]'):
+        for s in (' [Vídeo]', ' [Canción]', ' [Canal]', ' [Lista]'):
             if title_clean.endswith(s):
                 title_clean = title_clean[:-len(s)]
 
@@ -458,10 +457,20 @@ class MainFrame(
         if announce:
             accessibility.speak(text)
 
-    def on_formato_changed(self, event):
+    def on_formato_changed(self, event=None):
+        if not hasattr(self, 'choice_formato'):
+            return
         idx = self.choice_formato.GetSelection()
-        self.config['formato_idx'] = idx
-        guardar_configuracion(self.config)
+        if idx < 0:
+            return
+        if self.choice_formato.GetCount() == len(FORMATOS_SOLO_AUDIO):
+            if 0 <= idx < len(FORMATOS_SOLO_AUDIO):
+                self._current_format_key = FORMATOS_SOLO_AUDIO[idx][0]
+        else:
+            if 0 <= idx < len(FORMATOS_TODOS):
+                self._current_format_key = FORMATOS_TODOS[idx][0]
+                self.config['formato_idx'] = idx
+                guardar_configuracion(self.config)
         nombre = self.choice_formato.GetString(idx)
         self.set_status(f"Formato seleccionado: {nombre}", field=0, announce=True)
 

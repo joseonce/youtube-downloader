@@ -16,15 +16,63 @@ from config_manager import cargar_configuracion
 from media_utils import limpiar_caracteres_ansi, limpiar_extension_titulo
 from ui_mpv import mostrar_notificacion_bandeja
 
-FORMATOS_MAP = {
-    0: 'video_best',
-    1: 'audio_mp3_192',
-    2: 'audio_mp3_320',
-    3: 'audio_m4a'
-}
+from config_manager import FORMATOS_MAP, FORMATOS_TODOS, FORMATOS_SOLO_AUDIO
 
 
 class MainDownloadMixin:
+    def get_formato_descarga_actual(self):
+        """Retorna la clave interna del formato seleccionado ('video_best', 'audio_mp3_320', etc.)."""
+        if hasattr(self, '_current_format_key') and self._current_format_key:
+            return self._current_format_key
+        if not hasattr(self, 'choice_formato') or not self.choice_formato:
+            return 'video_best'
+        sel_idx = self.choice_formato.GetSelection()
+        if sel_idx < 0:
+            sel_idx = 0
+        if self.choice_formato.GetCount() == len(FORMATOS_SOLO_AUDIO):
+            if 0 <= sel_idx < len(FORMATOS_SOLO_AUDIO):
+                return FORMATOS_SOLO_AUDIO[sel_idx][0]
+            return 'audio_mp3_320'
+        if 0 <= sel_idx < len(FORMATOS_TODOS):
+            return FORMATOS_TODOS[sel_idx][0]
+        return 'video_best'
+
+    def get_carpeta_raiz_descarga(self, items=None):
+        """
+        Retorna la carpeta base para descargas:
+        - Si el modo de búsqueda actual es YouTube Music o cualquiera de los items es de YouTube Music:
+          retorna os.path.join(carpeta_base, 'musica') asegurando que la carpeta exista.
+        - De lo contrario, retorna la carpeta base predeterminada.
+        """
+        user_home = os.path.expanduser("~")
+        default_downloads = os.path.join(user_home, "Downloads") if os.path.exists(os.path.join(user_home, "Downloads")) else user_home
+        base = (getattr(self, 'destino_dir', '') or '').strip() or default_downloads
+
+        is_music = False
+        if hasattr(self, 'choice_tipo_busqueda') and self.choice_tipo_busqueda.IsEnabled():
+            if self.choice_tipo_busqueda.GetSelection() == 3:
+                is_music = True
+
+        if not is_music and getattr(self, 'last_search_type', '') == 'music':
+            is_music = True
+
+        if not is_music and items:
+            for it in items:
+                url_str = str(it.get('url', ''))
+                if it.get('tipo_item') == 'music' or it.get('is_music') or 'music.youtube.com' in url_str:
+                    is_music = True
+                    break
+
+        if is_music:
+            music_dir = os.path.join(base, "musica")
+            try:
+                os.makedirs(music_dir, exist_ok=True)
+            except Exception:
+                pass
+            return music_dir
+
+        return base
+
     def iniciar_sonido_espera(self):
         """Inicia el sonido de espera periódico si está habilitado en las preferencias."""
         cfg = getattr(self, 'config', {}) or {}
@@ -137,9 +185,7 @@ class MainDownloadMixin:
             self.set_status("No se encontraron vídeos para descargar.", field=0, announce=True)
             return
 
-        user_home = os.path.expanduser("~")
-        default_downloads = os.path.join(user_home, "Downloads") if os.path.exists(os.path.join(user_home, "Downloads")) else user_home
-        carpeta_base = (getattr(self, 'destino_dir', '') or '').strip() or default_downloads
+        carpeta_base = self.get_carpeta_raiz_descarga(videos)
         destino_final = carpeta_base
 
         sugerencia_limpia = re.sub(r'[\\/*?:"<>|]', '', sugerencia_subcarpeta).strip().rstrip('. ')
@@ -182,12 +228,7 @@ class MainDownloadMixin:
                 return
 
         self.destino_descarga_actual = destino_final
-
-        sel_format_idx = self.choice_formato.GetSelection()
-        if sel_format_idx < 0:
-            sel_format_idx = 0
-            self.choice_formato.SetSelection(0)
-        formato_str = FORMATOS_MAP.get(sel_format_idx, 'video_best')
+        formato_str = self.get_formato_descarga_actual()
 
         self.cola_descargas = list(videos)
         self.total_cola = len(self.cola_descargas)
@@ -239,9 +280,7 @@ class MainDownloadMixin:
 
         es_multiple = len(seleccionados) > 1
 
-        user_home = os.path.expanduser("~")
-        default_downloads = os.path.join(user_home, "Downloads") if os.path.exists(os.path.join(user_home, "Downloads")) else user_home
-        carpeta_base = (getattr(self, 'destino_dir', '') or '').strip() or default_downloads
+        carpeta_base = self.get_carpeta_raiz_descarga(seleccionados)
         destino_final = carpeta_base
 
         # Si hay más de una descarga seleccionada, preguntar en qué subcarpeta organizarlas
@@ -287,12 +326,7 @@ class MainDownloadMixin:
                 return
 
         self.destino_descarga_actual = destino_final
-
-        sel_format_idx = self.choice_formato.GetSelection()
-        if sel_format_idx < 0:
-            sel_format_idx = 0
-            self.choice_formato.SetSelection(0)
-        formato_str = FORMATOS_MAP.get(sel_format_idx, 'video_best')
+        formato_str = self.get_formato_descarga_actual()
 
         self.cola_descargas = list(seleccionados)
         self.total_cola = len(self.cola_descargas)
@@ -330,9 +364,7 @@ class MainDownloadMixin:
         sugerencia = getattr(self, 'current_playlist_title', '') or getattr(self, 'current_channel_title', '') or getattr(self, 'current_fav_name', '') or "Descargas"
         sugerencia_limpia = re.sub(r'[\\/*?:"<>|]', '', sugerencia).strip().rstrip('. ') or "Descargas"
 
-        user_home = os.path.expanduser("~")
-        default_downloads = os.path.join(user_home, "Downloads") if os.path.exists(os.path.join(user_home, "Downloads")) else user_home
-        carpeta_base = (getattr(self, 'destino_dir', '') or '').strip() or default_downloads
+        carpeta_base = self.get_carpeta_raiz_descarga(videos)
         destino_final = carpeta_base
 
         if len(videos) > 1:
@@ -390,8 +422,8 @@ class MainDownloadMixin:
         num_actual = self.indice_cola + 1
         total = self.total_cola
 
-        fmt_actual = item.get('_formato') or formato_str or FORMATOS_MAP.get(self.choice_formato.GetSelection(), 'video_best')
-        dest_actual = item.get('_destino') or destino or getattr(self, 'destino_descarga_actual', self.destino_dir)
+        fmt_actual = item.get('_formato') or formato_str or self.get_formato_descarga_actual()
+        dest_actual = item.get('_destino') or destino or getattr(self, 'destino_descarga_actual', None) or self.get_carpeta_raiz_descarga([item])
         formato_nombre = item.get('_formato_nombre') or self.choice_formato.GetString(self.choice_formato.GetSelection())
 
         titulo = item.get('title', 'Vídeo')

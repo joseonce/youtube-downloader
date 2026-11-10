@@ -1,9 +1,114 @@
 ========================================================================
-DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.6.3)
-Fecha: 5 de Noviembre de 2026
+DESCARGADOR DE YOUTUBE - ÚLTIMOS CAMBIOS Y NOVEDADES (v1.6.4)
+Fecha: 10 de Noviembre de 2026
 ========================================================================
 
-NOVEDADES EN LA VERSIÓN 1.6.3:
+NOVEDADES Y MEJORAS EN LA VERSIÓN 1.6.4:
+
+1. Búsqueda y Resolución Completa de Álbumes en YouTube Music:
+   - Consulta nativa al endpoint de álbumes de Innertube (/youtubei/v1/browse)
+     mediante el identificador directo de álbum (browseId / MPREb_...).
+   - Obtención de todas las pistas ordenadas por número de pista (10, 12, 18, 20...),
+     con duración, título, artista y metadatos nativos.
+   - Resolución automática por artista y nombre de álbum en búsquedas de texto.
+
+2. Menú Contextual Inteligente y Adaptativo para YouTube Music:
+   - Al pulsar menú contextual sobre canciones de YouTube Music, se muestran opciones
+     acordes: "Canciones del mismo artista", "Canciones del mismo álbum" y
+     "Copiar enlace del artista", eliminando opciones no procedentes como vídeos del canal.
+
+3. Paginación Continua Fluida (25 Resultados Exactos en YouTube Music):
+   - Gestión automática de continuaciones en Innertube para entregar exactamente
+     la cantidad configurada en preferencias (25 resultados) y habilitar la
+     paginación continua hacia adelante mediante "Siguientes resultados" (Alt+S).
+   - Deduplicación por videoId para evitar temas repetidos en búsquedas de canciones.
+
+4. Columnas Adaptativas y Dinámicas para Listas Mixtas:
+   - En listas de favoritos con vídeos y canciones combinados, las columnas se
+     adaptan a "Canal / Artista" y "Detalle / Álbum".
+   - Recálculo dinámico automático al eliminar pistas: si se eliminan todas las
+     canciones, las columnas regresan a modo vídeo ("Canal", "Visitas"), y viceversa.
+
+5. Opciones Avanzadas de Carátula en Descargas de Audio:
+   - Opciones en Preferencias: "Incrustada en archivo", "Incrustada y archivo .jpg externo",
+     "Solo archivo .jpg externo" o "Sin carátula".
+
+========================================================================
+NOVEDADES ANTERIORES EN LA VERSIÓN 1.6.3:
+========================================================================
+
+1. Integración de Búsqueda y Descarga en YouTube Music:
+   - Añadida la plataforma "YouTube Music" como tipo de búsqueda directa junto
+     a Vídeos, Canales y Listas de reproducción.
+   - Adaptación inteligente de formatos: al seleccionar "YouTube Music", el formato
+     de vídeo (MP4) desaparece automáticamente del selector de formatos.
+   - Formato predeterminado de audio: pasa automáticamente a "Audio MP3 (320 kbps -
+     Alta fidelidad)", permitiendo además alternar entre los restantes formatos de audio
+     (MP3 192, M4A, FLAC, WAV).
+   - Enrutamiento automático de carpetas: las descargas de YouTube Music se guardan
+     directamente en la subcarpeta raíz "musica/" dentro de tu carpeta de descargas
+     configurada (<destino>/musica/), organizando las descargas múltiples en
+     subcarpetas dentro de este directorio.
+   - Al volver a seleccionar Vídeos, Canales o Listas, el formato MP4 se restablece
+     de forma transparente.
+
+2. Botón Accesible y Tabulable de Favoritos en el Reproductor:
+   - Añadido un botón tabulable "Añadir a favoritos (F)" / "Eliminar de favoritos (F)"
+     en la interfaz del reproductor, accesible directamente con el tabulador o con
+     los atajos de teclado F y B.
+
+3. Normalización de Volumen en el Reproductor (EBU R128):
+   - Opción en Preferencias para activar la normalización de volumen inteligente
+     (filtro loudnorm EBU R128 de ffmpeg/libmpv) exclusivamente durante la reproducción,
+     asegurando un nivel de sonoridad uniforme y agradable entre pistas sin alterar
+     los archivos descargados.
+
+4. Metadatos y Carátula Configurable en Descargas de Audio y YouTube Music:
+   - Las pistas descargadas de YouTube Music y formatos de audio incrustan
+     automáticamente sus metadatos ID3 de estudio (artista, álbum, título de la canción,
+     pista y año de publicación).
+   - Nuevo grupo de botones de opción en Preferencias (Ctrl + , / F2) en la pestaña
+     Descargas para elegir la gestión de la carátula oficial:
+     * Incrustada en el archivo de audio (predeterminada, integrada en el MP3/M4A/FLAC).
+     * Incrustada y archivo .jpg independiente en la carpeta.
+     * Solo archivo .jpg independiente.
+     * Sin carátula.
+
+5. Menú Contextual Inteligente y Adaptativo para YouTube Music:
+   - Detección automática de pistas musicales (por canal - Topic, metadatos de audio
+     o búsqueda en YouTube Music).
+   - El menú contextual (tecla Aplicaciones o clic derecho) sustituye las opciones
+     de vídeos y canales por acciones musicales especializadas:
+     * "Canciones del mismo artista" (inicia búsqueda musical directa de dicho artista).
+     * "Canciones del mismo álbum" (localiza las pistas del álbum en YouTube Music).
+     * "Copiar enlace del artista".
+     * Terminología natural orientada a música ("Reproducir canción", "Descargar esta canción").
+
+6. Columnas Dinámicas y Adaptativas en la Tabla de Resultados para YouTube Music:
+   - Al buscar o visualizar contenido de YouTube Music, las columnas de la tabla de resultados se transforman automáticamente a una estructura musical especializada:
+     * Columna 0: Título (nombre de la pista o canción).
+     * Columna 1: Artista (en lugar de 'Canal').
+     * Columna 2: Álbum (título del álbum y año de lanzamiento en lugar de 'Duración').
+     * Columna 3: Duración (en lugar de 'Visitas').
+   - Total accesibilidad con lectores de pantalla: al explorar columnas con Alt+Flechas o Ctrl+Flechas, se anuncia 'Artista: ...', 'Álbum: ...' y 'Duración: ...' de manera fluida y precisa.
+   - Al limpiar la búsqueda o realizar búsquedas de vídeos, canales o listas estándar, la tabla restaura al instante sus columnas habituales (Título, Canal, Duración, Visitas).
+
+7. Armonización de Favoritos Mixtos (Vídeos de YouTube y Canciones de YouTube Music):
+   - Soporte nativo para guardar canciones de YouTube Music en cualquier lista de favoritos preservando íntegramente sus metadatos (artista, álbum, año).
+   - En la vista de favoritos, las canciones se identifican claramente con la etiqueta accesible `[Canción]` (junto a las ya existentes `[Vídeo]`, `[Canal]` y `[Lista]`).
+   - Columnas unificadas en listas mixtas: cuando una lista de favoritos combina vídeos y canciones, las columnas se adaptan inteligentemente a:
+     * Columna 0: Título (con su etiqueta accesible correspondiente).
+     * Columna 1: Canal / Artista.
+     * Columna 2: Duración.
+     * Columna 3: Detalle / Álbum (muestra el Álbum y año en canciones, y las visitas en vídeos).
+   - Si la lista de favoritos es 100% musical (ej. lista "Música"), adopta automáticamente el modo de columnas puro de YouTube Music.
+   - Menú contextual independiente por fila: en la misma lista de favoritos, al situarse sobre una canción se abre el menú musical especializado, y sobre un vídeo se abre el menú tradicional de vídeo.
+   - Recálculo dinámico de columnas al eliminar o mover elementos: si se elimina un elemento de una lista de favoritos (por ejemplo, en una lista de 20 vídeos y 1 canción se borra la canción, o en una de 20 canciones y 1 vídeo se borra el vídeo), la tabla detecta el cambio de composición y actualiza al instante las cabeceras y celdas al modo que corresponda (vídeo puro o música pura) de forma 100% accesible.
+
+========================================================================
+NOVEDADES ANTERIORES EN LA VERSIÓN 1.6.3:
+Fecha: 5 de Noviembre de 2026
+========================================================================
 
 1. Extracción de Transcripciones a Texto (.txt) y Traducción Multilingüe:
    - Implementada como gran novedad la extracción de subtítulos y transcripciones

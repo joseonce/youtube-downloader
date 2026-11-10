@@ -10,7 +10,8 @@ import accessibility
 import sound_manager
 from config_manager import (
     cargar_configuracion,
-    guardar_configuracion
+    guardar_configuracion,
+    MODOS_CARATULA
 )
 from ui_mpv import (
     obtener_dispositivos_audio,
@@ -73,6 +74,28 @@ class OptionsDialog(wx.Dialog):
         sizer_format.Add(row_fmt, 0, wx.EXPAND | wx.ALL, 8)
         
         sizer_descargas.Add(sizer_format, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
+        # Grupo: Carátula en descargas de audio y YouTube Music
+        box_caratula = wx.StaticBox(tab_descargas, label="Carátula en descargas de audio y YouTube Music")
+        sizer_caratula = wx.StaticBoxSizer(box_caratula, wx.VERTICAL)
+        
+        self.modos_caratula_keys = [m[0] for m in MODOS_CARATULA]
+        opciones_caratula = [m[1] for m in MODOS_CARATULA]
+        
+        cfg_caratula = self.config.get('caratula_modo', 'incrustada')
+        idx_caratula = self.modos_caratula_keys.index(cfg_caratula) if cfg_caratula in self.modos_caratula_keys else 0
+        
+        self.radio_caratula = wx.RadioBox(
+            box_caratula,
+            label="&Opciones de carátula para pistas de audio:",
+            choices=opciones_caratula,
+            majorDimension=1,
+            style=wx.RA_SPECIFY_COLS
+        )
+        self.radio_caratula.SetSelection(idx_caratula)
+        sizer_caratula.Add(self.radio_caratula, 0, wx.EXPAND | wx.ALL, 6)
+        
+        sizer_descargas.Add(sizer_caratula, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         # Grupo: Comportamiento al finalizar descargas
         box_comp_desc = wx.StaticBox(tab_descargas, label="Comportamiento al finalizar descargas")
@@ -147,6 +170,14 @@ class OptionsDialog(wx.Dialog):
         self.chk_auto_close_player = wx.CheckBox(box_player, label="&Cerrar la ventana del reproductor automáticamente al finalizar la reproducción")
         self.chk_auto_close_player.SetValue(self.config.get('cerrar_reproductor_al_finalizar', False))
         sizer_player.Add(self.chk_auto_close_player, 0, wx.ALL, 6)
+
+        self.chk_normalize_volume = wx.CheckBox(
+            box_player,
+            label="&Normalizar volumen automáticamente (hace que todas las canciones suenen al mismo nivel)"
+        )
+        self.chk_normalize_volume.SetToolTip("Equilibra la sonoridad en tiempo real para evitar diferencias bruscas de volumen entre pistas.")
+        self.chk_normalize_volume.SetValue(self.config.get('normalizar_volumen_reproductor', False))
+        sizer_player.Add(self.chk_normalize_volume, 0, wx.ALL, 6)
         
         self.chk_repeat = wx.CheckBox(box_player, label="&Repetición continua activada por defecto en el reproductor")
         self.chk_repeat.SetValue(self.config.get('repetir_reproductor', False))
@@ -324,6 +355,10 @@ class OptionsDialog(wx.Dialog):
         if path:
             self.config['destino_dir'] = path
         self.config['formato_idx'] = self.choice_formato.GetSelection()
+        if hasattr(self, 'radio_caratula'):
+            sel_caratula = self.radio_caratula.GetSelection()
+            if 0 <= sel_caratula < len(self.modos_caratula_keys):
+                self.config['caratula_modo'] = self.modos_caratula_keys[sel_caratula]
         self.config.pop('engine_idx', None)
         self.config.pop('search_type_idx', None)
         self.config['max_results'] = self.spin_max.GetValue()
@@ -334,6 +369,7 @@ class OptionsDialog(wx.Dialog):
         self.config['reproducir_con_video'] = self.chk_play_video.GetValue()
         self.config['reproductor_ventana_independiente'] = self.chk_independent_window.GetValue()
         self.config['cerrar_reproductor_al_finalizar'] = self.chk_auto_close_player.GetValue()
+        self.config['normalizar_volumen_reproductor'] = self.chk_normalize_volume.GetValue()
         self.config['velocidad_reproduccion'] = self.velocidades_val[self.choice_speed.GetSelection()]
         self.config['confirmar_eliminar_favorito'] = self.chk_confirm_delete_fav.GetValue()
         self.config['sonido_espera_descarga'] = self.chk_sonido_espera.GetValue()
@@ -344,12 +380,14 @@ class OptionsDialog(wx.Dialog):
             self.config['audio_output_device'] = self.audio_devices[sel_a][0]
             self.config['audio_output_device_name'] = self.audio_devices[sel_a][1]
             sound_manager.set_audio_device(self.audio_devices[sel_a][0])
-            parent = self.GetParent()
-            if hasattr(parent, 'active_preview_dialog') and parent.active_preview_dialog:
-                try:
-                    parent.active_preview_dialog.set_audio_output_device(self.config['audio_output_device'])
-                except Exception:
-                    pass
+
+        parent = self.GetParent()
+        if hasattr(parent, 'active_preview_dialog') and parent.active_preview_dialog:
+            try:
+                parent.active_preview_dialog.set_audio_output_device(self.config.get('audio_output_device', ''))
+                parent.active_preview_dialog.set_normalize_volume(self.config['normalizar_volumen_reproductor'])
+            except Exception:
+                pass
 
         # Modo de locuciones de voz
         sel_t = self.choice_tts.GetSelection()

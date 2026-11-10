@@ -84,6 +84,7 @@ class MainFavoritesMixin:
             tipo = detectar_tipo_elemento(f)
             es_canal = (tipo == 'channel')
             es_pl = (tipo == 'playlist')
+            es_mus = (tipo == 'music' or bool(f.get('is_music')))
             self.resultados.append({
                 'index': idx,
                 'id': f.get('id', str(idx)),
@@ -97,18 +98,36 @@ class MainFavoritesMixin:
                 'list_name': f.get('list_name', 'Principal'),
                 'is_channel': es_canal,
                 'is_playlist': es_pl,
+                'is_music': es_mus,
+                'artist': f.get('artist') or (f.get('channel') if es_mus else ''),
+                'album': f.get('album', ''),
+                'year': str(f.get('year') or ''),
+                'track': f.get('track', ''),
                 'tipo_item': tipo,
                 'type': tipo
             })
 
+        hay_musica = any(r.get('is_music') for r in self.resultados)
+        hay_videos = any(not r.get('is_music') for r in self.resultados)
+        modo_mus = (hay_musica and not hay_videos)
+        modo_mixto = (hay_musica and hay_videos)
+
         self.lista_resultados.DeleteAllItems()
+        if hasattr(self, 'actualizar_columnas_tabla'):
+            self.actualizar_columnas_tabla(modo_musica=modo_mus, modo_favoritos_mixto=modo_mixto)
         self.col_activa_resultados = 0
         for idx, r in enumerate(self.resultados):
             titulo_text, img_idx = self._get_item_display_title_and_image(r, is_fav_view=True)
             item_row = self.lista_resultados.InsertItem(self.lista_resultados.GetItemCount(), titulo_text, img_idx)
-            self.lista_resultados.SetItem(item_row, 1, r.get('channel', 'Desconocido'))
-            self.lista_resultados.SetItem(item_row, 2, r.get('duration', '--:--'))
-            self.lista_resultados.SetItem(item_row, 3, str(r.get('views', '--')))
+            if hasattr(self, '_obtener_textos_columnas_item'):
+                col1, col2, col3 = self._obtener_textos_columnas_item(r, modo_musica=modo_mus, modo_favoritos_mixto=modo_mixto)
+            else:
+                col1 = r.get('channel', 'Desconocido')
+                col2 = r.get('duration', '--:--')
+                col3 = str(r.get('views', '--'))
+            self.lista_resultados.SetItem(item_row, 1, col1)
+            self.lista_resultados.SetItem(item_row, 2, col2)
+            self.lista_resultados.SetItem(item_row, 3, col3)
 
         total = len(self.resultados)
         tag_lista = f" ({nombre_elegido})" if (nombre_elegido and nombre_elegido != "Todas las listas") else ""
@@ -191,6 +210,8 @@ class MainFavoritesMixin:
             })
 
         self.lista_resultados.DeleteAllItems()
+        if hasattr(self, 'actualizar_columnas_tabla'):
+            self.actualizar_columnas_tabla(modo_musica=False)
         self.col_activa_resultados = 0
         for idx, r in enumerate(self.resultados):
             titulo_text, img_idx = self._get_item_display_title_and_image(r, is_fav_view=False)
@@ -234,6 +255,7 @@ class MainFavoritesMixin:
             tipo = detectar_tipo_elemento(f)
             es_canal = (tipo == 'channel')
             es_pl = (tipo == 'playlist')
+            es_mus = (tipo == 'music' or bool(f.get('is_music')))
             self.resultados.append({
                 'index': idx,
                 'id': f.get('id', str(idx)),
@@ -247,18 +269,36 @@ class MainFavoritesMixin:
                 'list_name': f.get('list_name', self.current_fav_name),
                 'is_channel': es_canal,
                 'is_playlist': es_pl,
+                'is_music': es_mus,
+                'artist': f.get('artist') or (f.get('channel') if es_mus else ''),
+                'album': f.get('album', ''),
+                'year': str(f.get('year') or ''),
+                'track': f.get('track', ''),
                 'tipo_item': tipo,
                 'type': tipo
             })
 
+        hay_musica = any(r.get('is_music') for r in self.resultados)
+        hay_videos = any(not r.get('is_music') for r in self.resultados)
+        modo_mus = (hay_musica and not hay_videos)
+        modo_mixto = (hay_musica and hay_videos)
+
         self.lista_resultados.DeleteAllItems()
+        if hasattr(self, 'actualizar_columnas_tabla'):
+            self.actualizar_columnas_tabla(modo_musica=modo_mus, modo_favoritos_mixto=modo_mixto)
         self.col_activa_resultados = 0
         for idx, r in enumerate(self.resultados):
             titulo_text, img_idx = self._get_item_display_title_and_image(r, is_fav_view=True)
             item_row = self.lista_resultados.InsertItem(self.lista_resultados.GetItemCount(), titulo_text, img_idx)
-            self.lista_resultados.SetItem(item_row, 1, r.get('channel', 'Desconocido'))
-            self.lista_resultados.SetItem(item_row, 2, r.get('duration', '--:--'))
-            self.lista_resultados.SetItem(item_row, 3, str(r.get('views', '--')))
+            if hasattr(self, '_obtener_textos_columnas_item'):
+                col1, col2, col3 = self._obtener_textos_columnas_item(r, modo_musica=modo_mus, modo_favoritos_mixto=modo_mixto)
+            else:
+                col1 = r.get('channel', 'Desconocido')
+                col2 = r.get('duration', '--:--')
+                col3 = str(r.get('views', '--'))
+            self.lista_resultados.SetItem(item_row, 1, col1)
+            self.lista_resultados.SetItem(item_row, 2, col2)
+            self.lista_resultados.SetItem(item_row, 3, col3)
 
         total = len(self.resultados)
         tag_lista = f" ({nombre_elegido})" if (nombre_elegido and nombre_elegido != "Todas las listas") else ""
@@ -274,6 +314,40 @@ class MainFavoritesMixin:
         self.lista_resultados.Focus(0)
         self.lista_resultados.SetFocus()
         self.set_modo_boton_buscar('limpiar')
+
+    def _recalcular_columnas_favoritos(self):
+        """
+        Recalcula y actualiza dinámicamente las cabeceras y celdas de la tabla de favoritos
+        según la composición actual de self.resultados (solo música, solo vídeos o mixta).
+        """
+        if not getattr(self, 'is_showing_favorites', False) or getattr(self, 'is_showing_fav_lists', False):
+            return
+
+        total = len(self.resultados)
+        if total == 0:
+            if hasattr(self, 'actualizar_columnas_tabla'):
+                self.actualizar_columnas_tabla(modo_musica=False, modo_favoritos_mixto=False)
+            return
+
+        hay_musica = any(r.get('is_music') or r.get('tipo_item') == 'music' for r in self.resultados)
+        hay_videos = any(not (r.get('is_music') or r.get('tipo_item') == 'music') for r in self.resultados)
+
+        modo_mus = (hay_musica and not hay_videos)
+        modo_mixto = (hay_musica and hay_videos)
+
+        if hasattr(self, 'actualizar_columnas_tabla'):
+            self.actualizar_columnas_tabla(modo_musica=modo_mus, modo_favoritos_mixto=modo_mixto)
+
+        for idx, r in enumerate(self.resultados):
+            if hasattr(self, '_obtener_textos_columnas_item'):
+                col1, col2, col3 = self._obtener_textos_columnas_item(r, modo_musica=modo_mus, modo_favoritos_mixto=modo_mixto)
+            else:
+                col1 = r.get('channel', 'Desconocido')
+                col2 = r.get('duration', '--:--')
+                col3 = str(r.get('views', '--'))
+            self.lista_resultados.SetItem(idx, 1, col1)
+            self.lista_resultados.SetItem(idx, 2, col2)
+            self.lista_resultados.SetItem(idx, 3, col3)
 
     def reproducir_favoritos(self, event=None):
         nombres = obtener_nombres_listas_favoritos()
@@ -308,6 +382,7 @@ class MainFavoritesMixin:
                 for i in reversed(items_to_del):
                     self.resultados.pop(i)
                     self.lista_resultados.DeleteItem(i)
+                self._recalcular_columnas_favoritos()
                 total = len(self.resultados)
                 tag_lista = getattr(self, 'current_fav_tag', '')
                 self.lbl_results_info.SetLabel(f"&Mis Favoritos{tag_lista} ({total} guardados):")
@@ -343,8 +418,9 @@ class MainFavoritesMixin:
             self.btn_cancelar.Enable(True)
             self.btn_buscar.Enable(False)
             self.iniciar_sonido_espera()
-            formato_str = FORMATOS_MAP.get(self.choice_formato.GetSelection(), 'video_best')
-            self._iniciar_siguiente_descarga_cola(formato_str, self.destino_dir)
+            formato_str = self.get_formato_descarga_actual() if hasattr(self, 'get_formato_descarga_actual') else FORMATOS_MAP.get(self.choice_formato.GetSelection(), 'video_best')
+            dest_final = self.get_carpeta_raiz_descarga([dl_video]) if hasattr(self, 'get_carpeta_raiz_descarga') else self.destino_dir
+            self._iniciar_siguiente_descarga_cola(formato_str, dest_final)
         else:
             self.on_btn_descargar(None)
 
@@ -461,6 +537,7 @@ class MainFavoritesMixin:
                 if 0 <= idx < len(self.resultados):
                     self.resultados.pop(idx)
                     self.lista_resultados.DeleteItem(idx)
+                    self._recalcular_columnas_favoritos()
                     total = len(self.resultados)
                     tag_lista = getattr(self, 'current_fav_tag', '')
                     self.lbl_results_info.SetLabel(f"&Mis Favoritos{tag_lista} ({total} guardados):")
@@ -688,6 +765,7 @@ class MainFavoritesMixin:
                     self.resultados.pop(idx)
                     self.lista_resultados.DeleteItem(idx)
 
+                self._recalcular_columnas_favoritos()
                 total = len(self.resultados)
                 tag_lista = getattr(self, 'current_fav_tag', '')
                 self.lbl_results_info.SetLabel(f"&Mis Favoritos{tag_lista} ({total} guardados):")

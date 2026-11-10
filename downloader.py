@@ -83,6 +83,7 @@ class YouTubeDownloader(YouTubeSearchMixin):
         self._metodo_override = None
         self._active_process = None
         self.last_container_title = ""
+        self._music_search_cache = {}
         self.config = cargar_configuracion()
 
     def request_cancel(self):
@@ -156,6 +157,19 @@ class YouTubeDownloader(YouTubeSearchMixin):
                         fmt_args = ["-x", "--audio-format", "wav"]
                     else:  # video_best
                         fmt_args = ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
+
+                    # Metadatos y carátula para formatos de audio y YouTube Music
+                    if formato != 'video_best':
+                        fmt_args.append("--embed-metadata")
+                        caratula_modo = (getattr(self, 'config', {}) or {}).get('caratula_modo', 'incrustada')
+                        if caratula_modo == 'incrustada':
+                            fmt_args.extend(["--embed-thumbnail", "--convert-thumbnails", "jpg"])
+                        elif caratula_modo == 'incrustada_y_jpg':
+                            fmt_args.extend(["--embed-thumbnail", "--write-thumbnail", "--convert-thumbnails", "jpg"])
+                        elif caratula_modo == 'solo_jpg':
+                            fmt_args.extend(["--write-thumbnail", "--convert-thumbnails", "jpg"])
+                        elif caratula_modo == 'ninguna':
+                            fmt_args.extend(["--no-embed-thumbnail", "--no-write-thumbnail"])
 
                     def _run_download_process(extra_args):
                         cmd = base_args + extra_args + fmt_args
@@ -380,6 +394,19 @@ class YouTubeDownloader(YouTubeSearchMixin):
                         'merge_output_format': 'mp4',
                     })
 
+                # Metadatos y carátula para formatos de audio
+                if formato != 'video_best':
+                    postprocs = ydl_opts.setdefault('postprocessors', [])
+                    postprocs.append({'key': 'FFmpegMetadata'})
+                    caratula_modo = (getattr(self, 'config', {}) or {}).get('caratula_modo', 'incrustada')
+                    if caratula_modo in ('incrustada', 'incrustada_y_jpg'):
+                        ydl_opts['writethumbnail'] = True
+                        postprocs.append({'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg'})
+                        postprocs.append({'key': 'EmbedThumbnail'})
+                    elif caratula_modo == 'solo_jpg':
+                        ydl_opts['writethumbnail'] = True
+                        postprocs.append({'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg'})
+
                 ffmpeg_dir = get_ffmpeg_dir()
                 if ffmpeg_dir:
                     ydl_opts['ffmpeg_location'] = ffmpeg_dir
@@ -436,6 +463,7 @@ class YouTubeDownloader(YouTubeSearchMixin):
 
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
+        return thread
 
     @staticmethod
     def _limpiar_linea_transcripcion(linea: str) -> str:

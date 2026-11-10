@@ -239,7 +239,7 @@ def obtener_favoritos(nombre_lista=None):
 
 def detectar_tipo_elemento(item: dict) -> str:
     """
-    Retorna 'channel', 'playlist' o 'video' analizando un elemento de favoritos o resultados.
+    Retorna 'channel', 'playlist', 'music' o 'video' analizando un elemento de favoritos o resultados.
     """
     if not isinstance(item, dict):
         return 'video'
@@ -247,8 +247,12 @@ def detectar_tipo_elemento(item: dict) -> str:
         return 'channel'
     if item.get('is_playlist') or item.get('tipo_item') == 'playlist' or item.get('type') == 'playlist':
         return 'playlist'
+    if item.get('is_music') or item.get('tipo_item') == 'music' or item.get('type') == 'music':
+        return 'music'
     url = item.get('url', '')
     if url:
+        if 'music.youtube.com' in url:
+            return 'music'
         t = identificar_tipo_url(url)
         if t in ('canal', 'channel'):
             return 'channel'
@@ -279,6 +283,7 @@ def agregar_favorito(video_data, nombre_lista="Principal"):
         return False
 
     tipo = detectar_tipo_elemento(video_data)
+    es_musica = (tipo == 'music' or bool(video_data.get('is_music')))
 
     fav_item = {
         'id': vid_id,
@@ -291,6 +296,11 @@ def agregar_favorito(video_data, nombre_lista="Principal"):
         'type': tipo,
         'is_channel': (tipo == 'channel'),
         'is_playlist': (tipo == 'playlist'),
+        'is_music': es_musica,
+        'artist': video_data.get('artist') or (video_data.get('channel') if es_musica else ''),
+        'album': video_data.get('album', ''),
+        'year': str(video_data.get('year') or ''),
+        'track': video_data.get('track', ''),
         'tipo_item': tipo,
         'list_name': nombre_lista
     }

@@ -252,6 +252,120 @@ def test_descarga_finalizacion_y_estado_botones():
     print("  -> Finalización de descarga y estados de botones validados correctamente.")
 
 
+def test_cover_and_metadata_download_options():
+    print("\n[Extra] Probando opciones de metadatos y carátula (incrustada, incrustada+jpg, solo jpg, sin carátula)...")
+    from unittest.mock import patch, MagicMock
+    from downloader import YouTubeDownloader
+
+    dl = YouTubeDownloader()
+    captured_cmds = []
+
+    def mock_popen(cmd, *args, **kwargs):
+        captured_cmds.append(cmd)
+        m = MagicMock()
+        m.stdout = iter(["Destination: test.mp3\n", "[download] 100% of 1.00MiB\n"])
+        m.returncode = 0
+        m.wait.return_value = 0
+        return m
+
+    with patch('subprocess.Popen', side_effect=mock_popen):
+        # 1. Modo Incrustada por defecto
+        dl.config = {'caratula_modo': 'incrustada'}
+        captured_cmds.clear()
+        t = dl.descargar("https://youtube.com/watch?v=1", 'audio_mp3_320', "C:\\test")
+        t.join(timeout=5)
+        cmd = captured_cmds[-1]
+        assert "--embed-metadata" in cmd
+        assert "--embed-thumbnail" in cmd
+        assert "--write-thumbnail" not in cmd
+        assert "--convert-thumbnails" in cmd
+
+        # 2. Modo Incrustada y .jpg
+        dl.config = {'caratula_modo': 'incrustada_y_jpg'}
+        captured_cmds.clear()
+        t = dl.descargar("https://youtube.com/watch?v=1", 'audio_mp3_320', "C:\\test")
+        t.join(timeout=5)
+        cmd = captured_cmds[-1]
+        assert "--embed-metadata" in cmd
+        assert "--embed-thumbnail" in cmd
+        assert "--write-thumbnail" in cmd
+
+        # 3. Modo Solo .jpg
+        dl.config = {'caratula_modo': 'solo_jpg'}
+        captured_cmds.clear()
+        t = dl.descargar("https://youtube.com/watch?v=1", 'audio_mp3_320', "C:\\test")
+        t.join(timeout=5)
+        cmd = captured_cmds[-1]
+        assert "--embed-metadata" in cmd
+        assert "--embed-thumbnail" not in cmd
+        assert "--write-thumbnail" in cmd
+
+        # 4. Modo Sin carátula
+        dl.config = {'caratula_modo': 'ninguna'}
+        captured_cmds.clear()
+        t = dl.descargar("https://youtube.com/watch?v=1", 'audio_mp3_320', "C:\\test")
+        t.join(timeout=5)
+        cmd = captured_cmds[-1]
+        assert "--embed-metadata" in cmd
+        assert "--no-embed-thumbnail" in cmd
+        assert "--no-write-thumbnail" in cmd
+
+        # 5. Formato de vídeo (MP4) no debe incluir embed-thumbnail
+        captured_cmds.clear()
+        t = dl.descargar("https://youtube.com/watch?v=1", 'video_best', "C:\\test")
+        t.join(timeout=5)
+        cmd = captured_cmds[-1]
+        assert "--embed-thumbnail" not in cmd
+        assert "--write-thumbnail" not in cmd
+
+    print("  -> Opciones de metadatos y carátula validadas con éxito.")
+
+
+def test_buscar_album_canciones():
+    print("\n[7/7] Probando extracción completa de pistas de álbum con buscar_album_canciones...")
+    from downloader import YouTubeDownloader
+    dl = YouTubeDownloader()
+
+    # 1. Prueba directa con browseId real de Innertube (Caballo de Batalla - Juan Pardo)
+    tracks = dl.buscar_album_canciones("MPREb_cdrcdVwL6HK", max_results=50)
+    assert len(tracks) >= 10, f"Debe devolver todas las pistas del álbum (obtenidas: {len(tracks)})"
+    assert all(t.get('is_music') for t in tracks), "Todos los elementos deben ser de tipo música"
+    assert all(t.get('album') for t in tracks), "Todos los elementos deben tener álbum asignado"
+    assert tracks[0]['album_id'] == "MPREb_cdrcdVwL6HK"
+    assert tracks[0]['channel'] == "Juan Pardo" or tracks[0]['artist'] == "Juan Pardo"
+    print(f"  -> Álbum por browseId resuelto con éxito: {len(tracks)} canciones de '{tracks[0]['album']}'")
+
+    # 2. Prueba de resolución automática por nombre de álbum y artista si no hay browseId previo
+    tracks_lookup = dl.buscar_album_canciones("Caballo de Batalla", artist_name="Juan Pardo", max_results=50)
+    assert len(tracks_lookup) >= 10, f"Debe resolver y devolver las canciones del álbum buscado por texto (obtenidas: {len(tracks_lookup)})"
+    print(f"  -> Álbum por búsqueda de texto resuelto con éxito: {len(tracks_lookup)} canciones.")
+
+
+def test_youtube_music_paginacion_y_cantidad():
+    print("\n[8/8] Probando que YouTube Music entregue exactamente max_results (25) y soporte paginación...")
+    from downloader import YouTubeDownloader
+    dl = YouTubeDownloader()
+
+    # 1. Búsqueda de 25 resultados (superando el límite natural de 20 por página mediante continuación)
+    res_p1 = dl.buscar("Juan Pardo", max_results=25, search_type='music', start_index=1)
+    assert len(res_p1) == 25, f"Debe devolver exactamente 25 resultados (obtenidos: {len(res_p1)})"
+    assert res_p1[0]['index'] == 1
+    assert res_p1[-1]['index'] == 25
+    assert all(r.get('is_music') for r in res_p1), "Todos deben ser de tipo música"
+    print(f"  -> Primera página obtenida con éxito: {len(res_p1)} resultados.")
+
+    # 2. Siguiente página (start_index=26) debe devolver 25 resultados adicionales distintos
+    res_p2 = dl.buscar("Juan Pardo", max_results=25, search_type='music', start_index=26)
+    assert len(res_p2) == 25, f"Debe devolver exactamente 25 resultados en la segunda página (obtenidos: {len(res_p2)})"
+    assert res_p2[0]['index'] == 26
+    assert res_p2[-1]['index'] == 50
+    ids_p1 = {r['id'] for r in res_p1}
+    ids_p2 = {r['id'] for r in res_p2}
+    intersec = ids_p1.intersection(ids_p2)
+    assert len(intersec) == 0, f"No debe haber elementos repetidos entre páginas: {intersec}"
+    print(f"  -> Segunda página obtenida con éxito: {len(res_p2)} resultados continuos.")
+
+
 if __name__ == '__main__':
     test_url_detection()
     test_downloader()
@@ -260,4 +374,7 @@ if __name__ == '__main__':
     test_sugerencia_subcarpeta_lista_o_canal()
     test_limpieza_extensiones_en_descarga()
     test_descarga_finalizacion_y_estado_botones()
+    test_cover_and_metadata_download_options()
+    test_buscar_album_canciones()
+    test_youtube_music_paginacion_y_cantidad()
     print("\n[OK] Todas las pruebas de test_downloader.py pasaron satisfactoriamente.")

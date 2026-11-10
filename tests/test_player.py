@@ -771,6 +771,112 @@ def test_atajos_flechas_seek_10_segundos():
     print("  -> Flechas Derecha (+10s) e Izquierda (-10s) validadas de forma 100% coherente y simétrica.")
 
 
+def test_boton_favorito_tabulable_y_etiqueta():
+    print("\n[Player] Probando botón de favorito en reproductor (tabulable y coherencia)...")
+    import wx
+    from ui import VideoPreviewDialog
+    from favorites_manager import agregar_favorito, eliminar_favorito, es_favorito
+
+    app = wx.App.Get() or wx.App(False)
+    video = {
+        'id': 'test_fav_vid_123',
+        'title': 'Vídeo de prueba favorito',
+        'channel': 'Canal Test',
+        'duration': '02:15',
+        'url': 'https://www.youtube.com/watch?v=test_fav_vid_123'
+    }
+
+    # Asegurar estado limpio
+    if es_favorito(video['id']):
+        eliminar_favorito(video['id'])
+
+    dlg = VideoPreviewDialog(None, video)
+    dlg.Show(False)
+
+    # 1. Comprobar que el botón existe y es hijo de los controles de reproducción
+    assert hasattr(dlg, 'btn_fav') and dlg.btn_fav is not None
+    assert dlg.btn_fav.GetParent() == dlg.btn_prev.GetParent(), "btn_fav debe ser hermano tabulable de los controles de reproducción"
+    assert "Añadir a favoritos" in dlg.btn_fav.GetLabel()
+
+    # 2. Simular que el vídeo se añade a favoritos y verificar que la etiqueta conmuta
+    agregar_favorito(video, nombre_lista="Test")
+    dlg._update_ui_state()
+    assert "Eliminar de favoritos" in dlg.btn_fav.GetLabel()
+
+    # 3. Eliminar de favoritos y verificar que vuelve a 'Añadir a favoritos'
+    eliminar_favorito(video['id'])
+    dlg._update_ui_state()
+    assert "Añadir a favoritos" in dlg.btn_fav.GetLabel()
+
+    dlg.on_cleanup()
+    dlg.Destroy()
+    print("  -> Botón de favorito tabulable y actualización de estado validados correctamente.")
+
+
+def test_normalizar_volumen_reproductor():
+    print("\n[Player] Probando opción de normalización de volumen en reproductor...")
+    import wx
+    import config_manager
+    from ui import VideoPreviewDialog
+    from options_dialog import OptionsDialog
+
+    app = wx.App.Get() or wx.App(False)
+
+    # 1. Verificar configuración por defecto
+    assert 'normalizar_volumen_reproductor' in config_manager.DEFAULT_CONFIG
+    assert config_manager.DEFAULT_CONFIG['normalizar_volumen_reproductor'] is False
+
+    # 2. Verificar OptionsDialog
+    cfg = config_manager.cargar_configuracion()
+    cfg['normalizar_volumen_reproductor'] = True
+    config_manager.guardar_configuracion(cfg)
+
+    dlg_opt = OptionsDialog(None)
+    assert hasattr(dlg_opt, 'chk_normalize_volume')
+    assert dlg_opt.chk_normalize_volume.GetValue() is True
+
+    # Cambiar a False y guardar
+    dlg_opt.chk_normalize_volume.SetValue(False)
+    dlg_opt.on_save(None)
+    dlg_opt.Destroy()
+
+    cfg_saved = config_manager.cargar_configuracion()
+    assert cfg_saved.get('normalizar_volumen_reproductor') is False
+
+    # 3. Probar en VideoPreviewDialog
+    video = {
+        'id': 'test_vol_norm',
+        'title': 'Test Normalizar',
+        'channel': 'Canal',
+        'duration': '01:00',
+        'url': 'https://www.youtube.com/watch?v=test_vol_norm'
+    }
+    dlg_p = VideoPreviewDialog(None, video)
+    dlg_p.Show(False)
+
+    # Al crearse con normalizar_volumen_reproductor=False
+    assert dlg_p.normalize_volume is False
+    if dlg_p.mpv_player:
+        assert not dlg_p.mpv_player['af'] or dlg_p.mpv_player['af'] == []
+
+    # Activar en caliente
+    dlg_p.set_normalize_volume(True)
+    assert dlg_p.normalize_volume is True
+    if dlg_p.mpv_player:
+        af_list = dlg_p.mpv_player['af']
+        assert any('loudnorm' in str(item) for item in af_list), f"Filtro loudnorm esperado en MPV: {af_list}"
+
+    # Desactivar en caliente
+    dlg_p.set_normalize_volume(False)
+    assert dlg_p.normalize_volume is False
+    if dlg_p.mpv_player:
+        assert not dlg_p.mpv_player['af'] or dlg_p.mpv_player['af'] == []
+
+    dlg_p.on_cleanup()
+    dlg_p.Destroy()
+    print("  -> Opción y filtro de normalización de volumen validados con éxito.")
+
+
 if __name__ == '__main__':
     test_video_player_continuous_logic()
     test_reproductor_shuffle_stop_y_atajos()
@@ -782,4 +888,6 @@ if __name__ == '__main__':
     test_foco_reproductor_cambio_tarea_y_aislamiento_tts()
     test_atajos_f8_f9_f10_informacion_tiempo()
     test_atajos_flechas_seek_10_segundos()
+    test_boton_favorito_tabulable_y_etiqueta()
+    test_normalizar_volumen_reproductor()
     print("\n[OK] Todas las pruebas de test_player.py pasaron satisfactoriamente.")

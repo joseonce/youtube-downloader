@@ -42,13 +42,19 @@ Para buscar en la plataforma activa:
 
 ---
 
-## 3. Tipos de Búsqueda: Vídeos, Canales y Listas
+## 3. Tipos de Búsqueda: Vídeos, Canales, Listas y YouTube Music
 
 Por defecto, la aplicación se inicia lista para buscar en **YouTube** con el tipo de búsqueda en **Vídeos**. El tipo de búsqueda se puede alternar en el selector **Tipo** (`Alt + I`):
 
 - **Vídeos** *(por defecto)*: Busca vídeos individuales ordenados de más visitados a menos, mostrando su título, canal creador, duración e identificador.
 - **Canales**: Busca canales o creadores de contenido. Muestra el nombre del canal, su identificador `@usuario`, el número de suscriptores y, siempre que esté disponible en los metadatos de la plataforma, el número de vídeos que contiene (al igual que las listas de reproducción). Al pulsar **`Enter`** o **doble clic** sobre un canal, se cargarán automáticamente todos los vídeos subidos por dicho canal.
 - **Listas de reproducción**: Busca listas temáticas mostrando el número de vídeos que contiene cada lista. Al pulsar **`Enter`** o **doble clic**, se listarán todos los vídeos de dicha lista.
+- **YouTube Music**: Busca directamente en el catálogo musical de YouTube Music (`music.youtube.com`). Al seleccionar esta opción:
+  * El modo de formato **Vídeo MP4** desaparece del selector de formatos para optimizar la experiencia puramente auditiva.
+  * Por defecto se selecciona automáticamente el formato **Audio MP3 (320 kbps - Alta fidelidad)**, a menos que elijas otro formato de audio.
+  * Todas las descargas realizadas desde esta modalidad se guardan automáticamente dentro de la subcarpeta raíz **`musica/`** de tu carpeta de descargas configurada (`<destino>/musica/`). Al volver a alternar a Vídeos, Canales o Listas, el formato MP4 se restablece de inmediato.
+  * **Columnas musicales adaptativas**: En las búsquedas y visualización de canciones de YouTube Music, la tabla de resultados transforma sus columnas dinámicamente a **Título**, **Artista**, **Álbum** (incluyendo el año de publicación si está presente) y **Duración**, adaptando los anchos y los anuncios del lector de pantalla (`Alt + Flechas`). Al limpiar o volver a búsquedas generales de vídeos, se restauran las columnas habituales (**Título**, **Canal**, **Duración**, **Visitas**).
+  * **Menú contextual musical adaptativo**: Al abrir el menú contextual (`Aplicaciones` o clic derecho) sobre una canción de YouTube Music, las opciones tradicionales de canales y vídeos se sustituyen de forma inteligente por acciones musicales: **"Canciones del mismo artista"**, **"Canciones del mismo álbum"** y **"Copiar enlace del artista"**.
 
 ---
 
@@ -108,13 +114,13 @@ La aplicación cuenta con un reproductor integrado con soporte de streaming dire
 Para descargar contenidos:
 1. Marca los elementos deseados en la lista pulsando **`Espacio`** (o pulsa **`Ctrl + A`** para seleccionar todos).
 2. Elige el formato de salida en el desplegable **Formato** (`Alt + F`):
-   - **Vídeo (Mejor calidad MP4)**: Descarga la máxima resolución disponible con audio combinado.
+   - **Vídeo (Mejor calidad MP4)**: Descarga la máxima resolución disponible con audio combinado (se oculta automáticamente en el modo YouTube Music).
    - **Audio MP3 (192 kbps - Estándar)**: Conversión rápida a MP3 de buena calidad.
-   - **Audio MP3 (320 kbps - Alta fidelidad)**: Máxima calidad de audio MP3.
+   - **Audio MP3 (320 kbps - Alta fidelidad)**: Máxima calidad de audio MP3 (seleccionado por defecto en búsquedas de YouTube Music).
    - **Audio M4A (Original AAC)**: Audio original sin recodificación.
    - **Audio FLAC (Sin pérdida)**: Calidad de estudio sin pérdida (Free Lossless Audio Codec).
    - **Audio WAV (PCM sin comprimir)**: Formato de audio puro de máxima fidelidad.
-3. Elige la carpeta de destino en **Carpeta de descarga** (`Alt + C`).
+3. Elige la carpeta de destino en **Carpeta de descarga** (`Alt + C`). *(Nota: Las descargas realizadas desde el modo **YouTube Music** se guardan automáticamente en la carpeta raíz `musica/` dentro de tu directorio de descargas)*.
 4. Pulsa el botón **Descargar selección** (`Alt + D` o `Ctrl + D`).
 5. **Organización en subcarpetas para descargas múltiples**:
    - Si has seleccionado o marcado **más de un vídeo** (por ejemplo, mediante selección múltiple o varios elementos marcados con la barra espaciadora), la aplicación te preguntará en qué subcarpeta de la carpeta predeterminada deseas guardarlos. Si descargas un único elemento, se guardará directamente en la carpeta principal sin solicitar subcarpeta.
@@ -150,6 +156,15 @@ Puedes organizar tus pistas y vídeos favoritos en diferentes listas temáticas:
 - **Añadir a favoritos**: Pulsa **`Ctrl + B`** sobre cualquier elemento de la lista. Podrás elegir entre la lista *Principal*, cualquier lista existente o crear una nueva (ej. *Música Rock*, *Flamenco*, *Podcasts*, *Tutoriales*).
 - **Ver favoritos**: Pulsa **`Ctrl + H`** para cargar la lista de favoritos deseada en la tabla de resultados.
 - **Reproducción continua de favoritos**: Pulsa **`Ctrl + Shift + P`** para escuchar toda tu colección de favoritos sin interrupciones.
+- **Soporte para Canciones de YouTube Music y Listas Mixtas**:
+  * Puedes guardar tanto vídeos normales de YouTube como canciones de YouTube Music en cualquier lista de favoritos, preservando automáticamente sus metadatos de artista, álbum y año.
+  * Cada elemento muestra su etiqueta accesible: `[Vídeo]`, `[Canción]`, `[Canal]` o `[Lista]`.
+  * **Columnas adaptativas inteligentes en Favoritos**:
+    - Si la lista de favoritos contiene **solo canciones de YouTube Music**, las columnas se configuran automáticamente en modo musical: **Título**, **Artista**, **Álbum** y **Duración**.
+    - Si la lista de favoritos contiene **solo vídeos**, se configuran en modo estándar: **Título**, **Canal**, **Duración** y **Visitas**.
+    - Si la lista de favoritos es **mixta (vídeos y canciones)**, las columnas se unifican de forma óptima: **Título**, **Canal / Artista**, **Duración** y **Detalle / Álbum** (donde se presenta el Álbum y año en las canciones, y las visitas en los vídeos).
+    - **Recálculo automático tras borrado o movimiento**: Si se elimina un elemento de una lista de favoritos y dicha eliminación transforma la lista en puramente musical o puramente de vídeos (por ejemplo, al borrar la única canción de una lista con 20 vídeos, o viceversa), los encabezados de columna y las celdas se actualizan en tiempo real al formato correspondiente.
+  * **Menú contextual individual por fila**: Al pulsar la tecla `Aplicaciones` (o clic derecho) en una lista de favoritos mixta, el menú contextual se adapta a cada elemento: sobre una canción se abre el menú musical especializado (*"Canciones del mismo artista"*, *"Canciones del mismo álbum"*, *"Copiar enlace del artista"*), y sobre un vídeo se abre el menú de vídeo (*"Mostrar vídeos del canal"*, etc.).
 - **Eliminación y depuración de listas de favoritos**: Puedes pulsar la tecla **`Supr`** sobre cualquier elemento para eliminarlo de favoritos, o sobre una lista de favoritos temática para eliminarla **únicamente si está vacía** (con confirmación según tus preferencias). Si la lista contiene elementos, la aplicación te avisará para que los muevas o elimines antes de borrarla, protegiendo así tus contenidos.
 - **Archivos independientes para compartir**: Cada lista de favoritos se guarda en un archivo `.json` independiente dentro de la carpeta **`config/favoritos/`** (por ejemplo: `Principal.json`, `Música Rock.json`, `Flamenco.json`). De esta forma, si quieres pasarle a un amigo tu lista de rock y a otro tu lista de flamenco según sus preferencias musicales, no necesitas compartir toda tu colección: simplemente le envías el archivo individual deseado (`Música Rock.json` o `Flamenco.json`). Al copiarlo en su carpeta `config/favoritos/`, el programa lo reconocerá automáticamente.
 
@@ -160,6 +175,12 @@ Puedes organizar tus pistas y vídeos favoritos en diferentes listas temáticas:
 Accede al diálogo de **Preferencias** pulsando **`Ctrl + ,`** o **`F2`** para personalizar:
 - **Carpeta de destino predeterminada**: Directorio en el que se guardarán los archivos descargados.
 - **Formato de salida predeterminado**: Formato preseleccionado al iniciar la aplicación (MP4, MP3 192k, MP3 320k o M4A).
+- **Carátula en descargas de audio y YouTube Music**: Permite elegir mediante botones de opción cómo se gestionan las portadas oficiales en descargas de audio (MP3, M4A, FLAC, etc.):
+  * **Incrustada en el archivo de audio** *(predeterminado)*: Integra la imagen de la carátula dentro del propio archivo musical para que aparezca al reproducirlo en el móvil, coche o reproductor sin dejar archivos sueltos.
+  * **Incrustada y archivo .jpg**: Incrusta la portada en el archivo y además guarda la imagen `.jpg` independiente en la carpeta.
+  * **Solo archivo .jpg**: Guarda únicamente el archivo de imagen `.jpg` en la carpeta sin incrustar en el archivo de audio.
+  * **Sin carátula**: Descarga solo el archivo de audio limpio sin portada.
+  * *(Nota: Todas las descargas de música y audio incrustan automáticamente los metadatos ID3 oficiales: artista, álbum, pista, título y año)*.
 - **Cantidad de resultados por búsqueda**: Número máximo de resultados a recuperar por búsqueda (de 1 a 500, con **25** por defecto).
 - **Abrir carpeta de descargas automáticamente al finalizar**: Abre de forma inmediata la carpeta de descargas en el Explorador de Windows cuando concluye la descarga de archivos.
 - **Preguntar si abrir la carpeta al finalizar la descarga (cuadro Sí / No)**: Si la apertura automática está desmarcada, al finalizar la descarga la aplicación muestra un cuadro de diálogo accesible preguntando si deseas abrir la carpeta de destino ahora.

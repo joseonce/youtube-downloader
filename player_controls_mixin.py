@@ -278,11 +278,12 @@ class PlayerControlsMixin:
             return
 
         _del_fav(vid_id_or_url)
-        self.btn_fav.SetLabel("+ Favorito")
+        if hasattr(self, 'btn_fav') and self.btn_fav:
+            self.btn_fav.SetLabel("Añadir a favoritos (F)")
         accessibility.speak(f"Eliminado de favoritos: {titulo}")
         self.lbl_status.SetLabel("Eliminado de la lista de favoritos.")
 
-    def on_toggle_favorito(self, event):
+    def on_toggle_favorito(self, event=None):
         vid_id_or_url = self.video.get('url') or self.video.get('id', '')
         titulo = self.video.get('title', 'Vídeo')
         _es_fav = _get_ui_func('es_favorito', es_favorito)
@@ -294,7 +295,8 @@ class PlayerControlsMixin:
             if dlg.ShowModal() == wx.ID_OK:
                 n_lista = dlg.selected_list_name or "Principal"
                 _add_fav(self.video, nombre_lista=n_lista)
-                self.btn_fav.SetLabel("En Favoritos")
+                if hasattr(self, 'btn_fav') and self.btn_fav:
+                    self.btn_fav.SetLabel("Eliminar de favoritos (F)")
                 accessibility.speak(f"Añadido a favoritos en la lista '{n_lista}': {titulo}")
                 self.lbl_status.SetLabel(f"Añadido a favoritos ({n_lista}).")
             dlg.Destroy()

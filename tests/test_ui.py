@@ -27,12 +27,13 @@ def test_gui_init_and_selection():
     assert frame is not None, "Error al crear MainFrame"
     assert frame.GetTitle() == "Descargador de YouTube", f"Título incorrecto: {frame.GetTitle()}"
 
-    # Verificar que el control choice_tipo_busqueda existe y tiene las 3 opciones
+    # Verificar que el control choice_tipo_busqueda existe y tiene las 4 opciones
     assert hasattr(frame, 'choice_tipo_busqueda'), "MainFrame debe contener choice_tipo_busqueda"
-    assert frame.choice_tipo_busqueda.GetCount() == 3
+    assert frame.choice_tipo_busqueda.GetCount() == 4
     assert frame.choice_tipo_busqueda.GetString(0) == "Vídeos"
     assert frame.choice_tipo_busqueda.GetString(1) == "Canales"
     assert frame.choice_tipo_busqueda.GetString(2) == "Listas de reproducción"
+    assert frame.choice_tipo_busqueda.GetString(3) == "YouTube Music"
     assert frame.choice_tipo_busqueda.IsEnabled() is True  # YouTube activo por defecto
 
     # Verificar que existe el botón de Siguientes resultados y comienza deshabilitado
@@ -58,6 +59,22 @@ def test_gui_init_and_selection():
         frame.choice_tipo_busqueda.SetSelection(2)
         frame.on_tipo_busqueda_changed()
         assert anuncios_tipo[-1] == "Listas"
+        # Probar selección de YouTube Music
+        frame.choice_tipo_busqueda.SetSelection(3)
+        frame.on_tipo_busqueda_changed()
+        assert anuncios_tipo[-1] == "YouTube Music"
+        # Comprobar que en YouTube Music desaparece MP4 y quedan 5 formatos de audio
+        assert frame.choice_formato.GetCount() == 5
+        for idx_fmt in range(frame.choice_formato.GetCount()):
+            assert "MP4" not in frame.choice_formato.GetString(idx_fmt)
+        assert frame.get_formato_descarga_actual() == "audio_mp3_320"
+        assert frame.get_carpeta_raiz_descarga().endswith("musica")
+        # Volver a Vídeos y comprobar restauración de MP4 y carpeta normal
+        frame.choice_tipo_busqueda.SetSelection(0)
+        frame.on_tipo_busqueda_changed()
+        assert frame.choice_formato.GetCount() == 6
+        assert any("MP4" in frame.choice_formato.GetString(i) for i in range(6))
+        assert not frame.get_carpeta_raiz_descarga().endswith("musica")
     # La configuración persistente no debe modificarse por cambios puntuales en la barra
     assert frame.config.get('search_type_idx', 0) == initial_saved_type
 
@@ -176,8 +193,15 @@ def test_gui_init_and_selection():
             captured_preview.append({'videos': videos, 'initial_index': initial_index})
             self.wants_download = False
             self.download_target_video = None
+            self._is_closing = False
         def ShowModal(self):
             return wx.ID_OK
+        def Show(self):
+            pass
+        def Raise(self):
+            pass
+        def IsShown(self):
+            return True
         def Destroy(self):
             pass
 
@@ -366,6 +390,7 @@ def test_config_persistence_and_paths():
     assert DEFAULT_CONFIG['abrir_carpeta_al_terminar'] is False, "Abrir carpeta automáticamente debe estar desactivado por defecto"
     assert DEFAULT_CONFIG['preguntar_abrir_carpeta'] is True, "Preguntar si abrir carpeta debe estar activado por defecto"
     assert DEFAULT_CONFIG['confirmar_eliminar_favorito'] is True, "Confirmar eliminación de favoritos debe estar activado por defecto"
+    assert DEFAULT_CONFIG['caratula_modo'] == 'incrustada', "El modo de carátula por defecto debe ser 'incrustada'"
 
     # Verificar existencia de archivos de documentación y atajos
     manual_md = os.path.join(docs_dir, 'manual.md')
@@ -386,13 +411,26 @@ def test_config_persistence_and_paths():
     cfg_test['confirmar_eliminar_favorito'] = False
     guardar_configuracion(cfg_test)
 
+    cfg_test['caratula_modo'] = 'solo_jpg'
+    guardar_configuracion(cfg_test)
+
     cfg_loaded = cargar_configuracion()
     assert cfg_loaded.get('max_results') == 42
     assert cfg_loaded.get('formato_idx') == 2
     assert cfg_loaded.get('search_type_idx') == 1
     assert cfg_loaded.get('repetir_reproductor') is False
     assert cfg_loaded.get('confirmar_eliminar_favorito') is False
+    assert cfg_loaded.get('caratula_modo') == 'solo_jpg'
 
+    # Verificar presencia y opciones de radio_caratula en OptionsDialog
+    import wx
+    from options_dialog import OptionsDialog
+    app = wx.GetApp() or wx.App(False)
+    dlg_opt = OptionsDialog(None)
+    assert hasattr(dlg_opt, 'radio_caratula'), "OptionsDialog debe contener radio_caratula"
+    assert dlg_opt.radio_caratula.GetCount() == 4
+    assert dlg_opt.radio_caratula.GetSelection() == 2  # 'solo_jpg'
+    dlg_opt.Destroy()
 
     # Restaurar configuración inicial limpia por defecto
     cfg_restored = dict(DEFAULT_CONFIG)
@@ -973,6 +1011,450 @@ def test_playlist_enter_y_menu_contextual():
     print("  -> Activación por Enter y menú contextual de playlist validados satisfactoriamente.")
 
 
+def test_menu_contextual_youtube_music_adaptativo():
+    print("\n[Extra] Probando menú contextual adaptativo para YouTube Music vs Vídeos estándar...")
+    import wx
+    import ui
+    app = wx.GetApp() or wx.App(False)
+    frame = ui.MainFrame()
+
+    # Caso 1: Item YouTube Music
+    music_item = {
+        'id': 'PPh67KQ7Uz8',
+        'title': 'El hombre del norte',
+        'channel': 'Juan Pardo - Topic',
+        'url': 'https://music.youtube.com/watch?v=PPh67KQ7Uz8',
+        'duration': '03:40',
+        'is_music': True,
+        'tipo_item': 'music',
+        'artist': 'Juan Pardo',
+        'album': 'Qué Tienes en la Cama?'
+    }
+    frame.resultados = [music_item]
+    frame.lista_resultados.InsertItem(0, music_item['title'])
+    frame.lista_resultados.Select(0)
+
+    menu_labels = []
+    def mock_popup(menu, *args, **kwargs):
+        menu_labels.extend([item.GetItemLabelText() for item in menu.GetMenuItems()])
+    frame.PopupMenu = mock_popup
+
+    evt = wx.ContextMenuEvent(wx.wxEVT_CONTEXT_MENU)
+    frame.on_context_menu(evt)
+
+    assert any('Canciones del mismo artista' in l for l in menu_labels), f"Falta Canciones del mismo artista: {menu_labels}"
+    assert any('Canciones del mismo álbum' in l for l in menu_labels), f"Falta Canciones del mismo álbum: {menu_labels}"
+    assert any('Copiar enlace del artista' in l for l in menu_labels), f"Falta Copiar enlace del artista: {menu_labels}"
+    assert not any('vídeos del canal' in l for l in menu_labels), f"No debe tener vídeos del canal: {menu_labels}"
+
+    # Probar que las funciones de búsqueda de artista y álbum ejecutan correctamente sin excepción
+    frame.mostrar_canciones_mismo_artista(music_item)
+    assert frame.txt_busqueda.GetValue() == "Juan Pardo"
+    assert frame.choice_tipo_busqueda.GetSelection() == 3
+
+    frame.mostrar_canciones_mismo_album(music_item)
+    assert "Juan Pardo" in frame.txt_busqueda.GetValue() and "Qué Tienes en la Cama" in frame.txt_busqueda.GetValue()
+    assert frame.choice_tipo_busqueda.GetSelection() == 3
+
+    # Caso 2: Item Vídeo convencional
+    frame.choice_tipo_busqueda.SetSelection(0)
+    frame.on_tipo_busqueda_changed()
+    menu_labels.clear()
+    video_item = {
+        'id': 'vid1',
+        'title': 'Tutorial Python',
+        'channel': 'Canal Programacion',
+        'url': 'https://youtube.com/watch?v=vid1',
+        'duration': '10:00',
+        'is_music': False,
+        'tipo_item': 'video'
+    }
+    frame.resultados = [video_item]
+    frame.lista_resultados.DeleteAllItems()
+    frame.lista_resultados.InsertItem(0, video_item['title'])
+    frame.lista_resultados.Select(0)
+    frame.on_context_menu(evt)
+
+    assert any('Mostrar vídeos del canal' in l for l in menu_labels), f"Debe tener vídeos del canal: {menu_labels}"
+    assert not any('Canciones del mismo artista' in l for l in menu_labels), f"No debe tener canciones de artista: {menu_labels}"
+    frame.Destroy()
+    print("  -> Menú contextual adaptativo validado satisfactoriamente.")
+
+
+def test_columnas_adaptativas_youtube_music():
+    print("\n[Prueba] Verificando columnas adaptativas en YouTube Music vs vídeos estándar...")
+    import wx
+    import ui
+
+    app = wx.GetApp() or wx.App()
+    frame = ui.MainFrame()
+
+    # 1. Verificar columnas iniciales estándar
+    assert frame.lista_resultados.GetColumn(0).GetText() == "Título"
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Canal"
+    assert frame.lista_resultados.GetColumn(2).GetText() == "Duración"
+    assert frame.lista_resultados.GetColumn(3).GetText() == "Visitas"
+    assert frame.lista_resultados.GetColumn(1).GetWidth() == 220
+
+    # 2. Resultados de YouTube Music
+    items_musica = [
+        {
+            'id': 'm1',
+            'title': 'Caballo de batalla',
+            'channel': 'Juan Pardo',
+            'artist': 'Juan Pardo',
+            'album': 'Caballo de Batalla',
+            'year': '2012',
+            'duration': '4:10',
+            'views': '1,4 M',
+            'url': 'https://music.youtube.com/watch?v=m1',
+            'is_music': True,
+            'tipo_item': 'music'
+        }
+    ]
+    frame.last_search_query = "Juan Pardo"
+    frame._on_search_completed(items_musica, "Juan Pardo", append=False)
+
+    # Columnas deben ser Título, Artista, Álbum, Duración
+    assert frame.lista_resultados.GetColumn(0).GetText() == "Título"
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Artista"
+    assert frame.lista_resultados.GetColumn(2).GetText() == "Álbum"
+    assert frame.lista_resultados.GetColumn(3).GetText() == "Duración"
+
+    # Valores de la fila
+    assert frame.lista_resultados.GetItemText(0, 0) == "Caballo de batalla"
+    assert frame.lista_resultados.GetItem(0, 1).GetText() == "Juan Pardo"
+    assert frame.lista_resultados.GetItem(0, 2).GetText() == "Caballo de Batalla (2012)"
+    assert frame.lista_resultados.GetItem(0, 3).GetText() == "4:10"
+
+    # Marcar ítem con _actualizar_item_fila y verificar que se conservan las columnas de música
+    frame.resultados[0]['selected'] = True
+    frame._actualizar_item_fila(0)
+    assert "Caballo de batalla" in frame.lista_resultados.GetItemText(0, 0)
+    assert frame.lista_resultados.GetItem(0, 1).GetText() == "Juan Pardo"
+    assert frame.lista_resultados.GetItem(0, 2).GetText() == "Caballo de Batalla (2012)"
+    assert frame.lista_resultados.GetItem(0, 3).GetText() == "4:10"
+
+    # 3. Limpiar resultados debe restaurar las columnas estándar
+    frame.limpiar_resultados()
+    assert frame.lista_resultados.GetColumn(0).GetText() == "Título"
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Canal"
+    assert frame.lista_resultados.GetColumn(2).GetText() == "Duración"
+    assert frame.lista_resultados.GetColumn(3).GetText() == "Visitas"
+
+    # 4. Resultados de vídeo estándar
+    items_video = [
+        {
+            'id': 'v1',
+            'title': 'Vídeo Normal',
+            'channel': 'Canal Normal',
+            'duration': '12:34',
+            'views': '50.000',
+            'url': 'https://youtube.com/watch?v=v1',
+            'is_music': False,
+            'tipo_item': 'video'
+        }
+    ]
+    frame.last_search_query = "video normal"
+    frame._on_search_completed(items_video, "video normal", append=False)
+
+    assert frame.lista_resultados.GetColumn(0).GetText() == "Título"
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Canal"
+    assert frame.lista_resultados.GetColumn(2).GetText() == "Duración"
+    assert frame.lista_resultados.GetColumn(3).GetText() == "Visitas"
+    assert frame.lista_resultados.GetItem(0, 1).GetText() == "Canal Normal"
+    assert frame.lista_resultados.GetItem(0, 2).GetText() == "12:34"
+    assert frame.lista_resultados.GetItem(0, 3).GetText() == "50.000"
+
+    frame.Destroy()
+    print("  -> Columnas adaptativas de la tabla validadas satisfactoriamente.")
+
+
+def test_favoritos_mixtos_columnas_y_menu_contextual():
+    print("\n[Prueba] Verificando lista de favoritos mixtos (música + vídeo): columnas adaptativas y menú contextual...")
+    import wx
+    import ui
+    from downloader import agregar_favorito, eliminar_lista_favoritos, obtener_favoritos
+    from unittest.mock import patch
+
+    app = wx.GetApp() or wx.App()
+    frame = ui.MainFrame()
+
+    # Preparamos una lista de favoritos temporal 'TestMixto'
+    eliminar_lista_favoritos('TestMixto')
+    item_musica = {
+        'id': 'mus_fav_1',
+        'title': 'Caballo de batalla',
+        'channel': 'Juan Pardo',
+        'artist': 'Juan Pardo',
+        'album': 'Caballo de Batalla',
+        'year': '2012',
+        'duration': '4:10',
+        'views': '1,4 M',
+        'url': 'https://music.youtube.com/watch?v=mus_fav_1',
+        'is_music': True,
+        'tipo_item': 'music'
+    }
+    item_video = {
+        'id': 'vid_fav_1',
+        'title': 'Tutorial Python 2026',
+        'channel': 'Canal Programación',
+        'duration': '15:30',
+        'views': '250.000',
+        'url': 'https://youtube.com/watch?v=vid_fav_1',
+        'is_music': False,
+        'tipo_item': 'video'
+    }
+
+    agregar_favorito(item_musica, 'TestMixto')
+    agregar_favorito(item_video, 'TestMixto')
+
+    # Cargar en la interfaz la lista de favoritos mixtos
+    frame.mostrar_favoritos_de_lista('TestMixto', push_state=False)
+
+    # 1. Comprobar encabezados mixtos
+    assert frame.lista_resultados.GetItemCount() == 2
+    assert frame.lista_resultados.GetColumn(0).GetText() == "Título"
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Canal / Artista"
+    assert frame.lista_resultados.GetColumn(2).GetText() == "Duración"
+    assert frame.lista_resultados.GetColumn(3).GetText() == "Detalle / Álbum"
+
+    # 2. Comprobar filas
+    # Fila 0: Música
+    txt_tit_0 = frame.lista_resultados.GetItemText(0, 0)
+    assert "[Canción]" in txt_tit_0 and "Caballo de batalla" in txt_tit_0
+    assert frame.lista_resultados.GetItem(0, 1).GetText() == "Juan Pardo"
+    assert frame.lista_resultados.GetItem(0, 2).GetText() == "4:10"
+    assert "Caballo de Batalla (2012)" in frame.lista_resultados.GetItem(0, 3).GetText()
+
+    # Fila 1: Vídeo
+    txt_tit_1 = frame.lista_resultados.GetItemText(1, 0)
+    assert "[Vídeo]" in txt_tit_1 and "Tutorial Python 2026" in txt_tit_1
+    assert frame.lista_resultados.GetItem(1, 1).GetText() == "Canal Programación"
+    assert frame.lista_resultados.GetItem(1, 2).GetText() == "15:30"
+    assert "250.000" in frame.lista_resultados.GetItem(1, 3).GetText()
+
+    # 3. Comprobar menú contextual independiente según la fila enfocada
+    menu_labels = []
+    def capture_menu(menu):
+        for it in menu.GetMenuItems():
+            menu_labels.append(it.GetItemLabelText())
+
+    # Probar fila 0 (Música)
+    frame.lista_resultados.Select(0)
+    evt = wx.ContextMenuEvent(wx.wxEVT_CONTEXT_MENU)
+    with patch.object(frame, 'PopupMenu', side_effect=capture_menu):
+        frame.on_context_menu(evt)
+
+    assert any('Canciones del mismo artista' in l for l in menu_labels), f"Música debe tener 'Canciones del mismo artista': {menu_labels}"
+    assert any('Canciones del mismo álbum' in l for l in menu_labels), f"Música debe tener 'Canciones del mismo álbum': {menu_labels}"
+    assert any('Copiar enlace del artista' in l for l in menu_labels), f"Música debe tener 'Copiar enlace del artista': {menu_labels}"
+    assert not any('Mostrar vídeos del canal al que pertenece' in l for l in menu_labels), "Música no debe tener 'Mostrar vídeos del canal'"
+
+    # Probar fila 1 (Vídeo)
+    menu_labels.clear()
+    frame.lista_resultados.Select(1)
+    with patch.object(frame, 'PopupMenu', side_effect=capture_menu):
+        frame.on_context_menu(evt)
+
+    assert any('Mostrar vídeos del canal' in l for l in menu_labels), f"Vídeo debe tener 'Mostrar vídeos del canal': {menu_labels}"
+    assert not any('Canciones del mismo artista' in l for l in menu_labels), "Vídeo no debe tener canciones de artista"
+
+    # Limpieza
+    eliminar_lista_favoritos('TestMixto')
+    frame.Destroy()
+    print("  -> Favoritos mixtos: columnas unificadas y menú contextual individual validados con éxito.")
+
+
+def test_recalculo_columnas_al_eliminar_favoritos():
+    print("\n[Prueba] Verificando recálculo automático de columnas al eliminar un elemento de favoritos...")
+    import wx
+    import ui
+    from downloader import agregar_favorito, eliminar_lista_favoritos, obtener_favoritos
+    from unittest.mock import patch
+
+    app = wx.GetApp() or wx.App()
+    frame = ui.MainFrame()
+
+    eliminar_lista_favoritos('TestRecalculo')
+    item_musica = {
+        'id': 'mus_rec_1',
+        'title': 'Canción Única',
+        'channel': 'Artista Solitario',
+        'artist': 'Artista Solitario',
+        'album': 'Álbum Uno',
+        'year': '2024',
+        'duration': '3:30',
+        'views': '500.000',
+        'url': 'https://music.youtube.com/watch?v=mus_rec_1',
+        'is_music': True,
+        'tipo_item': 'music'
+    }
+    item_video1 = {
+        'id': 'vid_rec_1',
+        'title': 'Vídeo Uno',
+        'channel': 'Canal A',
+        'duration': '10:00',
+        'views': '100.000',
+        'url': 'https://youtube.com/watch?v=vid_rec_1',
+        'is_music': False,
+        'tipo_item': 'video'
+    }
+    item_video2 = {
+        'id': 'vid_rec_2',
+        'title': 'Vídeo Dos',
+        'channel': 'Canal B',
+        'duration': '20:00',
+        'views': '200.000',
+        'url': 'https://youtube.com/watch?v=vid_rec_2',
+        'is_music': False,
+        'tipo_item': 'video'
+    }
+
+    agregar_favorito(item_musica, 'TestRecalculo')
+    agregar_favorito(item_video1, 'TestRecalculo')
+    agregar_favorito(item_video2, 'TestRecalculo')
+
+    # Cargar lista: debe empezar en modo mixto (Canal / Artista)
+    frame.mostrar_favoritos_de_lista('TestRecalculo', push_state=False)
+    assert frame.lista_resultados.GetItemCount() == 3
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Canal / Artista"
+    assert frame.lista_resultados.GetColumn(3).GetText() == "Detalle / Álbum"
+
+    # 1. Eliminamos la única canción (ítem 0) con Supr sin diálogo de confirmación (mock)
+    frame.lista_resultados.Select(0)
+    with patch('ui.pedir_confirmacion_eliminar_favorito', return_value=True), patch('ui_mpv.pedir_confirmacion_eliminar_favorito', return_value=True):
+        frame.eliminar_favorito_seleccion()
+
+    # Ahora solo quedan 2 vídeos: ¡las cabeceras deben haber cambiado automáticamente a modo vídeo!
+    assert frame.lista_resultados.GetItemCount() == 2
+    assert frame.lista_resultados.GetColumn(0).GetText() == "Título"
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Canal"
+    assert frame.lista_resultados.GetColumn(2).GetText() == "Duración"
+    assert frame.lista_resultados.GetColumn(3).GetText() == "Visitas"
+    # Verificar celdas de los vídeos actualizadas
+    assert frame.lista_resultados.GetItem(0, 1).GetText() == "Canal A"
+    assert frame.lista_resultados.GetItem(0, 2).GetText() == "10:00"
+    assert frame.lista_resultados.GetItem(0, 3).GetText() == "100.000"
+
+    # 2. Ahora añadimos la canción de nuevo y eliminamos los 2 vídeos
+    agregar_favorito(item_musica, 'TestRecalculo')
+    frame.mostrar_favoritos_de_lista('TestRecalculo', push_state=False)
+    assert frame.lista_resultados.GetItemCount() == 3
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Canal / Artista"
+
+    # Eliminamos el primer vídeo (ítem 0)
+    frame.lista_resultados.Select(0)
+    with patch('ui.pedir_confirmacion_eliminar_favorito', return_value=True), patch('ui_mpv.pedir_confirmacion_eliminar_favorito', return_value=True):
+        frame.eliminar_favorito_seleccion()
+    # Aún queda 1 vídeo y 1 canción -> sigue en modo mixto
+    assert frame.lista_resultados.GetItemCount() == 2
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Canal / Artista"
+
+    # Eliminamos el segundo vídeo (ítem 0)
+    frame.lista_resultados.Select(0)
+    with patch('ui.pedir_confirmacion_eliminar_favorito', return_value=True), patch('ui_mpv.pedir_confirmacion_eliminar_favorito', return_value=True):
+        frame.eliminar_favorito_seleccion()
+
+    # ¡Ahora solo queda la canción!: las cabeceras deben haber cambiado automáticamente a modo música
+    assert frame.lista_resultados.GetItemCount() == 1
+    assert frame.lista_resultados.GetColumn(0).GetText() == "Título"
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Artista"
+    assert frame.lista_resultados.GetColumn(2).GetText() == "Álbum"
+    assert frame.lista_resultados.GetColumn(3).GetText() == "Duración"
+    assert frame.lista_resultados.GetItem(0, 1).GetText() == "Artista Solitario"
+    assert frame.lista_resultados.GetItem(0, 2).GetText() == "Álbum Uno (2024)"
+    assert frame.lista_resultados.GetItem(0, 3).GetText() == "3:30"
+
+    eliminar_lista_favoritos('TestRecalculo')
+    frame.Destroy()
+    print("  -> Recálculo dinámico de columnas al eliminar elementos validado con éxito.")
+
+
+def test_mostrar_canciones_mismo_album_ui():
+    print("\n[Extra] Probando acción 'Canciones del mismo álbum' en la interfaz...")
+    import wx
+    from unittest.mock import patch
+    from ui import MainFrame
+    app = wx.GetApp() or wx.App(False)
+    frame = MainFrame()
+
+    item_music = {
+        'id': 'xyUleiHwNmU',
+        'title': 'Caballo de batalla',
+        'channel': 'Juan Pardo',
+        'artist': 'Juan Pardo',
+        'album': 'Caballo de Batalla',
+        'album_id': 'MPREb_cdrcdVwL6HK',
+        'duration': '4:10',
+        'duration_seconds': 250,
+        'views': '--',
+        'url': 'https://music.youtube.com/watch?v=xyUleiHwNmU',
+        'is_music': True,
+        'tipo_item': 'music',
+        'selected': False
+    }
+
+    mock_album_tracks = [
+        {
+            'index': 1,
+            'id': 'E3ie3kI-G4o',
+            'title': 'Amor bueno',
+            'channel': 'Juan Pardo',
+            'artist': 'Juan Pardo',
+            'album': 'Caballo de Batalla',
+            'album_id': 'MPREb_cdrcdVwL6HK',
+            'duration': '3:40',
+            'duration_seconds': 220,
+            'views': '--',
+            'url': 'https://music.youtube.com/watch?v=E3ie3kI-G4o',
+            'is_music': True,
+            'tipo_item': 'music',
+            'selected': False
+        },
+        {
+            'index': 2,
+            'id': 'xyUleiHwNmU',
+            'title': 'Caballo de batalla',
+            'channel': 'Juan Pardo',
+            'artist': 'Juan Pardo',
+            'album': 'Caballo de Batalla',
+            'album_id': 'MPREb_cdrcdVwL6HK',
+            'duration': '4:10',
+            'duration_seconds': 250,
+            'views': '--',
+            'url': 'https://music.youtube.com/watch?v=xyUleiHwNmU',
+            'is_music': True,
+            'tipo_item': 'music',
+            'selected': False
+        }
+    ]
+
+    frame.resultados = [item_music]
+    frame.lista_resultados.DeleteAllItems()
+    frame.lista_resultados.InsertItem(0, item_music['title'])
+    frame.lista_resultados.Select(0)
+
+    with patch.object(frame, 'ejecutar_busqueda_album_canciones') as mock_ejecutar:
+        frame.mostrar_canciones_mismo_album(item_music)
+        mock_ejecutar.assert_called_once_with('MPREb_cdrcdVwL6HK', album_title='Caballo de Batalla', artist_name='Juan Pardo')
+
+    frame.last_search_kind = 'album_canciones'
+    frame._on_search_completed(mock_album_tracks, "Canciones de Caballo de Batalla", append=False)
+    assert frame.lista_resultados.GetItemCount() == 2
+    assert frame.lista_resultados.GetColumn(1).GetText() == "Artista"
+    assert frame.lista_resultados.GetColumn(2).GetText() == "Álbum"
+    assert frame.lista_resultados.GetColumn(3).GetText() == "Duración"
+    assert frame.lista_resultados.GetItem(0, 0).GetText() == "Amor bueno"
+    assert frame.lista_resultados.GetItem(0, 1).GetText() == "Juan Pardo"
+    assert frame.lista_resultados.GetItem(0, 2).GetText() == "Caballo de Batalla"
+    assert frame.lista_resultados.GetItem(0, 3).GetText() == "3:40"
+    assert not frame.btn_siguientes.IsEnabled()
+
+    frame.Destroy()
+    print("  -> Acción 'Canciones del mismo álbum' y visualización de pistas en la UI validada con éxito.")
+
+
 if __name__ == '__main__':
     test_gui_init_and_selection()
     test_config_persistence_and_paths()
@@ -985,6 +1467,11 @@ if __name__ == '__main__':
     test_modo_locuciones_y_deteccion_lector_pantalla()
     test_pegar_enlace_canal_o_lista()
     test_playlist_enter_y_menu_contextual()
+    test_menu_contextual_youtube_music_adaptativo()
+    test_columnas_adaptativas_youtube_music()
+    test_favoritos_mixtos_columnas_y_menu_contextual()
+    test_recalculo_columnas_al_eliminar_favoritos()
+    test_mostrar_canciones_mismo_album_ui()
     print("\n[OK] Todas las pruebas de test_ui.py pasaron satisfactoriamente.")
     import os
     os._exit(0)

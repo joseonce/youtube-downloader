@@ -35,6 +35,83 @@ class MainSearchMixin:
         except Exception:
             pass
 
+    def actualizar_columnas_tabla(self, modo_musica=False, modo_favoritos_mixto=False):
+        """
+        Adapta dinámicamente los encabezados y anchos de columna de lista_resultados
+        según el tipo de contenido:
+        - Estándar: Título (440), Canal (220), Duración (120), Visitas (140).
+        - YouTube Music: Título (400), Artista (220), Álbum (220), Duración (100).
+        - Favoritos Mixtos: Título (380), Canal / Artista (220), Duración (120), Detalle / Álbum (200).
+        """
+        if not hasattr(self, 'lista_resultados') or not self.lista_resultados:
+            return
+        num_cols = self.lista_resultados.GetColumnCount()
+        if num_cols < 4:
+            return
+
+        cols_actuales = [self.lista_resultados.GetColumn(i).GetText() for i in range(num_cols)]
+        if modo_musica:
+            if len(cols_actuales) > 1 and cols_actuales[1] == "Artista":
+                return
+            nuevas = [("Título", 400), ("Artista", 220), ("Álbum", 220), ("Duración", 100)]
+        elif modo_favoritos_mixto:
+            if len(cols_actuales) > 1 and cols_actuales[1] == "Canal / Artista":
+                return
+            nuevas = [("Título", 380), ("Canal / Artista", 220), ("Duración", 120), ("Detalle / Álbum", 200)]
+        else:
+            if len(cols_actuales) > 1 and cols_actuales[1] == "Canal":
+                return
+            nuevas = [("Título", 440), ("Canal", 220), ("Duración", 120), ("Visitas", 140)]
+
+        for i, (nombre, ancho) in enumerate(nuevas):
+            if i < num_cols:
+                col = self.lista_resultados.GetColumn(i)
+                col.SetText(nombre)
+                col.SetWidth(ancho)
+                self.lista_resultados.SetColumn(i, col)
+
+    def _obtener_textos_columnas_item(self, r, modo_musica=False, modo_favoritos_mixto=False):
+        """
+        Retorna las 3 cadenas para las columnas 1, 2 y 3 de lista_resultados.
+        - En modo normal: Canal, Duración, Visitas.
+        - En modo música pura: Artista, Álbum (con año si procede), Duración.
+        - En modo favoritos mixtos: Canal / Artista, Duración, Detalle / Álbum (o Visitas).
+        """
+        if modo_musica:
+            artista = r.get('artist') or r.get('channel') or 'Desconocido'
+            album = r.get('album') or ''
+            year = str(r.get('year') or '').strip()
+            if year and year not in album:
+                album = f"{album} ({year})" if album else year
+            album = album or '--'
+            duracion = r.get('duration', '--:--')
+            return artista, album, duracion
+        elif modo_favoritos_mixto:
+            is_item_music = (
+                r.get('is_music') or
+                r.get('tipo_item') == 'music' or
+                'music.youtube.com' in str(r.get('url', '')) or
+                bool(r.get('album'))
+            )
+            canal_artista = r.get('artist') or r.get('channel') or 'Desconocido'
+            duracion = r.get('duration', '--:--')
+            if is_item_music:
+                album = r.get('album') or ''
+                year = str(r.get('year') or '').strip()
+                if year and year not in album:
+                    album = f"{album} ({year})" if album else year
+                detalle = album or 'Canción'
+            else:
+                detalle = str(r.get('views', '--'))
+                if detalle != '--' and not detalle.endswith('visitas') and not detalle.endswith('vídeos') and not detalle.endswith('suscriptores'):
+                    detalle = f"{detalle} visitas"
+            return canal_artista, duracion, detalle
+        else:
+            canal = r.get('channel', 'Desconocido')
+            duracion = r.get('duration', '--:--')
+            visitas = str(r.get('views', '--'))
+            return canal, duracion, visitas
+
     def limpiar_resultados(self, event=None):
         """
         Borra la lista de resultados, elimina el campo de edición de búsqueda,
@@ -52,6 +129,7 @@ class MainSearchMixin:
             return
 
         self.lista_resultados.DeleteAllItems()
+        self.actualizar_columnas_tabla(modo_musica=False)
         self.resultados = []
         self.is_showing_favorites = False
         self.is_showing_fav_lists = False
@@ -66,9 +144,10 @@ class MainSearchMixin:
         if hasattr(self, 'item_siguientes'):
             self.item_siguientes.Enable(False)
 
-        if hasattr(self, 'navigation_stack'):
-            self.navigation_stack.clear()
-        self._pending_nav_state = None
+        if getattr(self, '_pending_nav_state', None) is None:
+            if hasattr(self, 'navigation_stack'):
+                self.navigation_stack.clear()
+            self._pending_nav_state = None
 
         self.lbl_results_info.SetLabel("&Lista de resultados (0 ítems):")
         self.lbl_progreso_detalle.SetLabel("Resultados limpiados. Campo de búsqueda listo.")
@@ -208,12 +287,28 @@ class MainSearchMixin:
 
         self.lista_resultados.DeleteAllItems()
         is_fav = self.is_showing_favorites and not self.is_showing_fav_lists
+        es_musica = False
+        es_mixto = False
+        if is_fav:
+            hay_musica = any(r.get('is_music') for r in self.resultados)
+            hay_videos = any(not r.get('is_music') for r in self.resultados)
+            es_musica = (hay_musica and not hay_videos)
+            es_mixto = (hay_musica and hay_videos)
+        else:
+            if estado.get('last_search_type') == 'music':
+                es_musica = True
+            elif self.resultados and any(r.get('is_music') for r in self.resultados):
+                es_musica = True
+
+        self.actualizar_columnas_tabla(modo_musica=es_musica, modo_favoritos_mixto=es_mixto)
+
         for idx, r in enumerate(self.resultados):
             titulo_text, img_idx = self._get_item_display_title_and_image(r, is_fav_view=is_fav)
             item_row = self.lista_resultados.InsertItem(self.lista_resultados.GetItemCount(), titulo_text, img_idx)
-            self.lista_resultados.SetItem(item_row, 1, r.get('channel', 'Desconocido'))
-            self.lista_resultados.SetItem(item_row, 2, r.get('duration', '--:--'))
-            self.lista_resultados.SetItem(item_row, 3, str(r.get('views', '--')))
+            col1, col2, col3 = self._obtener_textos_columnas_item(r, modo_musica=es_musica, modo_favoritos_mixto=es_mixto)
+            self.lista_resultados.SetItem(item_row, 1, col1)
+            self.lista_resultados.SetItem(item_row, 2, col2)
+            self.lista_resultados.SetItem(item_row, 3, col3)
 
         lbl_info = estado.get('lbl_results_info', '')
         if lbl_info:
@@ -295,7 +390,7 @@ class MainSearchMixin:
             return
 
         tipo_sel_idx = self.choice_tipo_busqueda.GetSelection() if self.choice_tipo_busqueda.IsEnabled() else 0
-        tipo_busqueda_map = {0: 'video', 1: 'channel', 2: 'playlist'}
+        tipo_busqueda_map = {0: 'video', 1: 'channel', 2: 'playlist', 3: 'music'}
         search_type = tipo_busqueda_map.get(tipo_sel_idx, 'video')
 
         tipo = identificar_tipo_url(query)
@@ -360,7 +455,7 @@ class MainSearchMixin:
             return
 
         tipo_sel_idx = self.choice_tipo_busqueda.GetSelection() if self.choice_tipo_busqueda.IsEnabled() else 0
-        tipo_busqueda_map = {0: 'video', 1: 'channel', 2: 'playlist'}
+        tipo_busqueda_map = {0: 'video', 1: 'channel', 2: 'playlist', 3: 'music'}
         search_type = tipo_busqueda_map.get(tipo_sel_idx, 'video')
 
         tipo = identificar_tipo_url(query)
@@ -377,9 +472,10 @@ class MainSearchMixin:
         max_results = int(self.config.get('max_results', 25))
         engine = self.current_engine
 
-        if hasattr(self, 'navigation_stack'):
-            self.navigation_stack.clear()
-        self._pending_nav_state = None
+        if getattr(self, '_pending_nav_state', None) is None:
+            if hasattr(self, 'navigation_stack'):
+                self.navigation_stack.clear()
+            self._pending_nav_state = None
         self.current_playlist_title = ""
         self.current_channel_title = ""
 
@@ -541,6 +637,61 @@ class MainSearchMixin:
 
         threading.Thread(target=_worker, daemon=True).start()
 
+    def ejecutar_busqueda_album_canciones(self, album_id_or_name, album_title="", artist_name=""):
+        if self.is_searching:
+            return
+        if hasattr(self, 'resultados') and self.resultados:
+            self._pending_nav_state = self._capturar_estado_navegacion()
+        max_results = int(self.config.get('max_results', 50))
+        if max_results < 50:
+            max_results = 50
+        self.is_searching = True
+        self.last_search_query = album_title or album_id_or_name
+        self.last_search_kind = 'album_canciones'
+        self.last_target_url = album_id_or_name
+        self.current_playlist_title = album_title or "Álbum"
+        self.next_start_index = 1
+        self.last_search_type = 'music'
+
+        if hasattr(self, 'choice_tipo_busqueda'):
+            self.choice_tipo_busqueda.SetSelection(3)
+            if hasattr(self, 'on_tipo_busqueda_changed'):
+                self.on_tipo_busqueda_changed()
+
+        if hasattr(self, 'txt_busqueda'):
+            disp_txt = f"{artist_name} - {album_title}" if (artist_name and album_title and album_title != '--') else (album_title or album_id_or_name)
+            self.txt_busqueda.SetValue(disp_txt)
+
+        self.btn_buscar.Enable(False)
+        self.btn_siguientes.Enable(False)
+        if hasattr(self, 'item_siguientes'):
+            self.item_siguientes.Enable(False)
+        accessibility.silence()
+        accessibility.speak("Buscando.", interrupt=True)
+        if hasattr(self, 'status_bar') and self.status_bar:
+            self.status_bar.SetStatusText("Buscando...", 0)
+        lbl_album = f" de '{album_title}'" if album_title else ""
+        self.lbl_progreso_detalle.SetLabel(f"Cargando canciones del álbum{lbl_album}...")
+        sound_manager.start_waiting_sound(interval=1.2)
+
+        def _worker():
+            try:
+                resultados = self.downloader.buscar_album_canciones(
+                    album_id_or_name,
+                    album_title=album_title,
+                    artist_name=artist_name,
+                    max_results=max_results
+                )
+                detected = getattr(self.downloader, 'last_container_title', '')
+                if not self.current_playlist_title and detected:
+                    self.current_playlist_title = detected
+                album_nombre = self.current_playlist_title or album_title or "el álbum"
+                wx.CallAfter(self._on_search_completed, resultados, f"Canciones de {album_nombre}", False)
+            except Exception as e:
+                wx.CallAfter(self._on_search_error, str(e))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
     def on_btn_siguientes(self, event=None):
         if not self.verificar_libreria_ytdlp():
             return
@@ -633,14 +784,24 @@ class MainSearchMixin:
                 return
 
             prev_count = len(self.resultados)
+            es_musica = False
+            col1_header = self.lista_resultados.GetColumn(1).GetText() if self.lista_resultados.GetColumnCount() > 1 else ""
+            if col1_header == "Artista":
+                es_musica = True
+            elif hasattr(self, 'choice_tipo_busqueda') and self.choice_tipo_busqueda.IsEnabled() and self.choice_tipo_busqueda.GetSelection() == 3:
+                es_musica = True
+            elif getattr(self, 'last_search_type', '') == 'music':
+                es_musica = True
+
             for r in nuevos:
                 r['index'] = len(self.resultados) + 1
                 self.resultados.append(r)
                 titulo_text, img_idx = self._get_item_display_title_and_image(r, is_fav_view=False)
                 item_row = self.lista_resultados.InsertItem(self.lista_resultados.GetItemCount(), titulo_text, img_idx)
-                self.lista_resultados.SetItem(item_row, 1, r.get('channel', 'Desconocido'))
-                self.lista_resultados.SetItem(item_row, 2, r.get('duration', '--:--'))
-                self.lista_resultados.SetItem(item_row, 3, str(r.get('views', '--')))
+                col1, col2, col3 = self._obtener_textos_columnas_item(r, modo_musica=es_musica)
+                self.lista_resultados.SetItem(item_row, 1, col1)
+                self.lista_resultados.SetItem(item_row, 2, col2)
+                self.lista_resultados.SetItem(item_row, 3, col3)
 
             self.next_start_index += len(resultados)
             total_count = len(self.resultados)
@@ -671,6 +832,15 @@ class MainSearchMixin:
         self.resultados = resultados
         self.lista_resultados.DeleteAllItems()
 
+        es_musica = False
+        if hasattr(self, 'choice_tipo_busqueda') and self.choice_tipo_busqueda.IsEnabled() and self.choice_tipo_busqueda.GetSelection() == 3:
+            es_musica = True
+        elif getattr(self, 'last_search_type', '') == 'music':
+            es_musica = True
+        elif resultados and any(r.get('is_music') for r in resultados):
+            es_musica = True
+
+        self.actualizar_columnas_tabla(modo_musica=es_musica)
         self.col_activa_resultados = 0
 
         if not resultados:
@@ -689,9 +859,10 @@ class MainSearchMixin:
         for idx, r in enumerate(resultados):
             titulo_text, img_idx = self._get_item_display_title_and_image(r, is_fav_view=False)
             item_row = self.lista_resultados.InsertItem(self.lista_resultados.GetItemCount(), titulo_text, img_idx)
-            self.lista_resultados.SetItem(item_row, 1, r.get('channel', 'Desconocido'))
-            self.lista_resultados.SetItem(item_row, 2, r.get('duration', '--:--'))
-            self.lista_resultados.SetItem(item_row, 3, str(r.get('views', '--')))
+            col1, col2, col3 = self._obtener_textos_columnas_item(r, modo_musica=es_musica)
+            self.lista_resultados.SetItem(item_row, 1, col1)
+            self.lista_resultados.SetItem(item_row, 2, col2)
+            self.lista_resultados.SetItem(item_row, 3, col3)
 
         num = len(resultados)
         self.next_start_index = 1 + num
@@ -700,8 +871,9 @@ class MainSearchMixin:
 
         tipo_query = identificar_tipo_url(self.last_search_query) if self.last_search_query else 'texto'
         es_video_directo = (tipo_query == 'video')
+        es_album = (getattr(self, 'last_search_kind', '') == 'album_canciones')
         max_results = int(self.config.get('max_results', 25))
-        puede_paginar = not es_video_directo and (num >= max_results)
+        puede_paginar = not es_video_directo and not es_album and (num >= max_results)
         self.btn_siguientes.Enable(puede_paginar)
         if hasattr(self, 'item_siguientes'):
             self.item_siguientes.Enable(puede_paginar)
@@ -721,6 +893,9 @@ class MainSearchMixin:
             else:
                 status_msg = f"Cargadas {num} listas de reproducción. Pulsa Enter en una para ver sus vídeos o Alt+S para ver más."
                 detalle_msg = "Pulsa Enter o Doble Clic en una lista para ver sus vídeos."
+        elif es_album:
+            status_msg = f"Álbum cargado: {num} canciones encontradas. Usa Espacio para marcar canciones."
+            detalle_msg = f"Mostrando las {num} canciones del álbum. Usa Espacio para marcar o Enter para reproducir."
         else:
             status_msg = f"Búsqueda completada: {num} resultados encontrados. Usa Espacio para marcar vídeos o Alt+S para los siguientes."
             detalle_msg = "Marca vídeos con Espacio y pulsa Descargar, o pulsa Siguientes resultados (Alt+S)."

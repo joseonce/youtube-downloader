@@ -82,17 +82,25 @@ class YouTubeSearchMixin:
 
         resultados = []
 
+        is_music_search = (isinstance(query, str) and 'music.youtube.com' in query)
+
         for idx, entry in enumerate(entries[:max_results], start_index):
 
             if not entry:
 
                 continue
 
+            if not entry.get('title') and not entry.get('id'):
+
+                continue
+
             item_id = entry.get('id', '')
 
-            titulo = limpiar_extension_titulo(entry.get('title', 'Sin título'))
+            raw_title = entry.get('title') or entry.get('track') or 'Pista musical'
 
-            canal = entry.get('uploader') or entry.get('channel') or entry.get('channel_title') or entry.get('creator') or ''
+            titulo = limpiar_extension_titulo(raw_title)
+
+            canal = entry.get('uploader') or entry.get('channel') or entry.get('artist') or entry.get('creator') or ''
 
             if (not canal or canal == 'Desconocido') and parent_channel_name:
 
@@ -100,7 +108,7 @@ class YouTubeSearchMixin:
 
             if not canal:
 
-                canal = 'Desconocido'
+                canal = 'YouTube Music' if (is_music_search or 'music.youtube.com' in str(entry.get('url', ''))) else 'Desconocido'
 
             
 
@@ -302,38 +310,41 @@ class YouTubeSearchMixin:
 
 
 
+            is_music_item = (
+                is_music_search or
+                'music.youtube.com' in url or
+                (canal and (canal.strip().endswith(' - Topic') or canal.strip().endswith(' - Tema'))) or
+                bool(entry.get('track')) or
+                bool(entry.get('album'))
+            )
+
+            art_val = entry.get('artist') or entry.get('creator') or entry.get('uploader') or canal
+            if art_val:
+                art_val = re.sub(r'\s*-\s*(Topic|Tema)$', '', str(art_val)).strip()
+
+            year_val = entry.get('release_year') or entry.get('year') or (str(entry.get('upload_date'))[:4] if entry.get('upload_date') and len(str(entry.get('upload_date'))) >= 4 else '')
+
             resultados.append({
-
                 'index': idx,
-
                 'id': item_id or str(idx),
-
                 'title': titulo,
-
                 'channel': canal,
-
                 'channel_url': channel_url,
-
                 'duration_seconds': duracion_sec,
-
                 'duration': duracion_str,
-
                 'views': views_str,
-
                 'view_count': vc,
-
                 'url': url,
-
                 'description': entry.get('description') or '',
-
                 'is_playlist': (tipo_item == 'playlist'),
-
                 'is_channel': (tipo_item == 'channel'),
-
-                'tipo_item': tipo_item,
-
+                'is_music': is_music_item,
+                'tipo_item': ('music' if is_music_item else tipo_item),
+                'artist': art_val or '',
+                'album': entry.get('album') or '',
+                'year': str(year_val) if year_val else '',
+                'track': entry.get('track') or '',
                 'selected': False,
-
             })
 
         return resultados
@@ -570,6 +581,11 @@ class YouTubeSearchMixin:
 
 
 
+        if search_type == 'music' and not (query.startswith('http://') or query.startswith('https://')):
+            res_music = self._buscar_youtube_music_innertube(query, max_results=max_results, start_index=start_index)
+            if res_music:
+                return res_music
+
         is_channel_search = False
 
         is_playlist_search = False
@@ -601,6 +617,10 @@ class YouTubeSearchMixin:
                     search_query = f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(query)}&sp=EgIQAw%253D%253D"
 
                     is_playlist_search = True
+
+                elif search_type == 'music':
+
+                    search_query = f"https://music.youtube.com/search?q={urllib.parse.quote_plus(query)}#songs"
 
                 else:
 
@@ -849,6 +869,451 @@ class YouTubeSearchMixin:
         return ""
 
 
+
+    def _buscar_youtube_music_innertube(self, query: str, max_results: int = 25, start_index: int = 1):
+        """
+        Búsqueda especializada en YouTube Music usando la API Innertube WEB_REMIX.
+        Obtiene de forma directa y nativa: título, artista, álbum, duración y visitas.
+        Soporta continuaciones para entregar exactamente max_results y paginación continua.
+        """
+        try:
+            needed = start_index + max_results - 1
+            context = {
+                "client": {
+                    "clientName": "WEB_REMIX",
+                    "clientVersion": "1.20231201.00.00",
+                    "hl": "es",
+                    "gl": "ES"
+                }
+            }
+
+            def _extract_vid(raw_it):
+                r_it = raw_it.get('musicResponsiveListItemRenderer', {})
+                return (
+                    r_it.get('playlistItemData', {}).get('videoId') or
+                    r_it.get('overlay', {}).get('musicItemThumbnailOverlayRenderer', {}).get('content', {}).get('musicPlayButtonRenderer', {}).get('playNavigationEndpoint', {}).get('watchEndpoint', {}).get('videoId')
+                )
+
+            cache = getattr(self, '_music_search_cache', {}) or {}
+            if cache.get('query') == query and start_index > 1:
+                items_raw = cache.get('items_raw', [])
+                continuation_token = cache.get('continuation_token')
+                seen_ids = {_extract_vid(it) for it in items_raw if _extract_vid(it)}
+            else:
+                api_url = "https://music.youtube.com/youtubei/v1/search"
+                body = {
+                    "context": context,
+                    "query": query,
+                    "params": "EgWKAQIIAWoQEAMQBBAJEAoQBRAREBAQFQ%3D%3D"
+                }
+                req = urllib.request.Request(
+                    api_url,
+                    data=json.dumps(body).encode('utf-8'),
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                    }
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    data = json.loads(resp.read().decode('utf-8'))
+
+                sections = data.get('contents', {}).get('tabbedSearchResultsRenderer', {}).get('tabs', [{}])[0].get('tabRenderer', {}).get('content', {}).get('sectionListRenderer', {}).get('contents', [])
+                items_raw = []
+                seen_ids = set()
+                continuation_token = None
+                for s in sections:
+                    shelf = s.get('musicShelfRenderer', {})
+                    if shelf:
+                        for it in shelf.get('contents', []):
+                            vid = _extract_vid(it)
+                            if vid and vid not in seen_ids:
+                                seen_ids.add(vid)
+                                items_raw.append(it)
+                            elif not vid:
+                                items_raw.append(it)
+                        conts = shelf.get('continuations', [])
+                        if conts:
+                            continuation_token = conts[0].get('nextContinuationData', {}).get('continuation')
+
+            while len(items_raw) < needed and continuation_token:
+                try:
+                    req_c = urllib.request.Request(
+                        f"https://music.youtube.com/youtubei/v1/search?continuation={continuation_token}",
+                        data=json.dumps({"context": context}).encode('utf-8'),
+                        headers={
+                            "Content-Type": "application/json",
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                        }
+                    )
+                    with urllib.request.urlopen(req_c, timeout=10) as resp_c:
+                        data_c = json.loads(resp_c.read().decode('utf-8'))
+                    c_shelf = data_c.get('continuationContents', {}).get('musicShelfContinuation', {})
+                    new_items = c_shelf.get('contents', [])
+                    if not new_items:
+                        break
+                    for it in new_items:
+                        vid = _extract_vid(it)
+                        if vid and vid not in seen_ids:
+                            seen_ids.add(vid)
+                            items_raw.append(it)
+                        elif not vid:
+                            items_raw.append(it)
+                    conts = c_shelf.get('continuations', [])
+                    continuation_token = conts[0].get('nextContinuationData', {}).get('continuation') if conts else None
+                except Exception as e_c:
+                    logger.warning(f"Error al obtener continuación de YouTube Music: {e_c}")
+                    break
+
+            self._music_search_cache = {
+                'query': query,
+                'items_raw': items_raw,
+                'continuation_token': continuation_token
+            }
+
+            if not items_raw:
+                return []
+
+            resultados = []
+            sliced = items_raw[start_index - 1 : needed]
+
+            for idx, raw_item in enumerate(sliced, start=start_index):
+                item = raw_item.get('musicResponsiveListItemRenderer', {})
+                if not item:
+                    continue
+
+                video_id = (
+                    item.get('playlistItemData', {}).get('videoId') or
+                    item.get('overlay', {}).get('musicItemThumbnailOverlayRenderer', {}).get('content', {}).get('musicPlayButtonRenderer', {}).get('playNavigationEndpoint', {}).get('watchEndpoint', {}).get('videoId')
+                )
+                if not video_id:
+                    continue
+
+                flex_cols = item.get('flexColumns', [])
+                titulo = ""
+                if len(flex_cols) > 0:
+                    runs0 = flex_cols[0].get('musicResponsiveListItemFlexColumnRenderer', {}).get('text', {}).get('runs', [])
+                    if runs0:
+                        titulo = runs0[0].get('text', '')
+
+                artista = ""
+                album = ""
+                album_id = ""
+                artist_id = ""
+                duracion_str = "--:--"
+                views_str = "--"
+
+                if len(flex_cols) > 1:
+                    runs1 = flex_cols[1].get('musicResponsiveListItemFlexColumnRenderer', {}).get('text', {}).get('runs', [])
+                    for r_item in runs1:
+                        b_endpoint = r_item.get('navigationEndpoint', {}).get('browseEndpoint', {})
+                        page_type = (b_endpoint.get('browseEndpointContextSupportedConfigs', {})
+                                     .get('browseEndpointContextMusicConfig', {})
+                                     .get('pageType'))
+                        bid = b_endpoint.get('browseId', '')
+                        if page_type == 'MUSIC_PAGE_TYPE_ALBUM' or bid.startswith('MPREb_') or bid.startswith('OLAK5uy_'):
+                            album_id = bid
+                        elif page_type == 'MUSIC_PAGE_TYPE_ARTIST' or bid.startswith('UC'):
+                            artist_id = bid
+
+                    partes = [r.get('text', '').strip() for r in runs1 if r.get('text', '').strip() and r.get('text', '').strip() != '•']
+                    if len(partes) >= 1:
+                        artista = partes[0]
+                    if len(partes) >= 2:
+                        if re.match(r'^\d+:\d+', partes[-1]):
+                            duracion_str = partes[-1]
+                            if len(partes) >= 3:
+                                album = partes[1]
+                        else:
+                            album = partes[1]
+                    if len(partes) >= 3 and not album:
+                        album = partes[1]
+
+                year_str = ""
+                for p in partes:
+                    if re.match(r'^(19\d\d|20\d\d)$', p):
+                        year_str = p
+                        break
+
+                if len(flex_cols) > 2:
+                    runs2 = flex_cols[2].get('musicResponsiveListItemFlexColumnRenderer', {}).get('text', {}).get('runs', [])
+                    if runs2:
+                        views_str = runs2[0].get('text', '--')
+
+                dur_secs = 0
+                if ':' in duracion_str:
+                    try:
+                        p_dur = [int(x) for x in duracion_str.split(':')]
+                        if len(p_dur) == 2:
+                            dur_secs = p_dur[0] * 60 + p_dur[1]
+                        elif len(p_dur) == 3:
+                            dur_secs = p_dur[0] * 3600 + p_dur[1] * 60 + p_dur[2]
+                    except Exception:
+                        pass
+
+                resultados.append({
+                    'index': idx,
+                    'id': video_id,
+                    'title': titulo,
+                    'channel': artista or 'YouTube Music',
+                    'channel_url': f"https://music.youtube.com/watch?v={video_id}",
+                    'duration_seconds': dur_secs,
+                    'duration': duracion_str,
+                    'views': views_str,
+                    'view_count': 0,
+                    'url': f"https://music.youtube.com/watch?v={video_id}",
+                    'description': f"Artista: {artista}\nÁlbum: {album}",
+                    'is_playlist': False,
+                    'is_channel': False,
+                    'is_music': True,
+                    'tipo_item': 'music',
+                    'artist': artista,
+                    'album': album,
+                    'album_id': album_id,
+                    'artist_id': artist_id,
+                    'year': year_str,
+                    'track': titulo,
+                    'selected': False,
+                })
+
+            return resultados
+        except Exception:
+            return []
+
+    def buscar_album_canciones(self, album_id_or_name: str, album_title: str = "", artist_name: str = "", max_results: int = 50) -> list:
+        """
+        Obtiene la lista completa de canciones de un álbum en YouTube Music usando Innertube.
+        Soporta browseId (MPREb_..., OLAK5uy_...), URLs de álbum/playlist, o búsqueda por nombre de álbum y artista.
+        """
+        browse_id = ""
+        target = (album_id_or_name or "").strip()
+
+        # 1. Si target ya es browseId o contiene OLAK / MPREb
+        if target.startswith("MPREb_") or target.startswith("OLAK5uy_"):
+            browse_id = target
+        elif "list=" in target:
+            m = re.search(r'list=([a-zA-Z0-9_-]+)', target)
+            if m:
+                browse_id = m.group(1)
+        elif "music.youtube.com/browse/" in target:
+            browse_id = target.split("music.youtube.com/browse/")[-1].split("?")[0]
+
+        # 2. Si no tenemos browse_id, buscar el álbum por texto (artista + álbum)
+        if not browse_id:
+            query_lookup = f"{artist_name} {album_title or target}".strip()
+            if query_lookup:
+                try:
+                    api_url = "https://music.youtube.com/youtubei/v1/search"
+                    body = {
+                        "context": {
+                            "client": {
+                                "clientName": "WEB_REMIX",
+                                "clientVersion": "1.20231201.00.00",
+                                "hl": "es",
+                                "gl": "ES"
+                            }
+                        },
+                        "query": query_lookup,
+                        "params": "EgWKAQIBAWoQEAMQBBAJEAoQBRAREBAQFQ%3D%3D"
+                    }
+                    req = urllib.request.Request(
+                        api_url,
+                        data=json.dumps(body).encode('utf-8'),
+                        headers={
+                            "Content-Type": "application/json",
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                        }
+                    )
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        data = json.loads(resp.read().decode('utf-8'))
+
+                    contents = data.get('contents', {}).get('tabbedSearchResultsRenderer', {}).get('tabs', [{}])[0].get('tabRenderer', {}).get('content', {}).get('sectionListRenderer', {}).get('contents', [])
+                    for sec in contents:
+                        for item in sec.get('itemSectionRenderer', {}).get('contents', []):
+                            nav = item.get('musicResponsiveListItemRenderer', {}).get('navigationEndpoint', {})
+                            bid = nav.get('browseEndpoint', {}).get('browseId')
+                            ptype = (nav.get('browseEndpoint', {})
+                                     .get('browseEndpointContextSupportedConfigs', {})
+                                     .get('browseEndpointContextMusicConfig', {})
+                                     .get('pageType'))
+                            if bid and (bid.startswith('MPREb_') or bid.startswith('OLAK5uy_') or ptype == 'MUSIC_PAGE_TYPE_ALBUM'):
+                                browse_id = bid
+                                break
+                        if browse_id:
+                            break
+                        for item in sec.get('musicShelfRenderer', {}).get('contents', []):
+                            nav = item.get('musicResponsiveListItemRenderer', {}).get('navigationEndpoint', {})
+                            bid = nav.get('browseEndpoint', {}).get('browseId')
+                            if bid and (bid.startswith('MPREb_') or bid.startswith('OLAK5uy_')):
+                                browse_id = bid
+                                break
+                        if browse_id:
+                            break
+                except Exception as e:
+                    logger.warning(f"Error en búsqueda previa de browseId de álbum: {e}")
+
+        # Si aún no tenemos browse_id, fallback a búsqueda de canciones estándar con query
+        if not browse_id:
+            query_fallback = f"{artist_name} {album_title or target}".strip()
+            return self._buscar_youtube_music_innertube(query_fallback, max_results=max_results, start_index=1)
+
+        # 3. Navegar el álbum usando /youtubei/v1/browse
+        try:
+            api_url = "https://music.youtube.com/youtubei/v1/browse"
+            body = {
+                "context": {
+                    "client": {
+                        "clientName": "WEB_REMIX",
+                        "clientVersion": "1.20231201.00.00",
+                        "hl": "es",
+                        "gl": "ES"
+                    }
+                },
+                "browseId": browse_id
+            }
+            req = urllib.request.Request(
+                api_url,
+                data=json.dumps(body).encode('utf-8'),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+
+            nombre_album = album_title or ""
+            artista_album = artist_name or ""
+            year_album = ""
+
+            two_col = data.get('contents', {}).get('twoColumnBrowseResultsRenderer', {})
+            tabs = two_col.get('tabs', [])
+            if not tabs:
+                tabs = data.get('contents', {}).get('singleColumnBrowseResultsRenderer', {}).get('tabs', [])
+            if tabs:
+                s_contents = tabs[0].get('tabRenderer', {}).get('content', {}).get('sectionListRenderer', {}).get('contents', [])
+                for sc in s_contents:
+                    hdr = sc.get('musicResponsiveHeaderRenderer')
+                    if hdr:
+                        if not nombre_album:
+                            nombre_album = hdr.get('title', {}).get('runs', [{}])[0].get('text', '')
+                        if not artista_album:
+                            st_runs = hdr.get('straplineTextOne', {}).get('runs', [])
+                            if st_runs:
+                                artista_album = st_runs[0].get('text', '')
+                        sub_runs = hdr.get('subtitle', {}).get('runs', [])
+                        for sr in sub_runs:
+                            stxt = sr.get('text', '').strip()
+                            if re.match(r'^(19\d\d|20\d\d)$', stxt):
+                                year_album = stxt
+                                break
+                        break
+
+            mf = data.get('microformat', {}).get('microformatDataRenderer', {})
+            if not nombre_album:
+                nombre_album = mf.get('title', '')
+            if not artista_album:
+                desc = mf.get('description', '')
+                if '•' in desc:
+                    artista_album = desc.split('•')[-1].strip()
+
+            self.last_container_title = nombre_album
+
+            sections = two_col.get('secondaryContents', {}).get('sectionListRenderer', {}).get('contents', [])
+            items_raw = []
+            for s in sections:
+                shelf = s.get('musicShelfRenderer')
+                if shelf:
+                    items_raw.extend(shelf.get('contents', []))
+
+            if not items_raw and tabs:
+                for s in tabs[0].get('tabRenderer', {}).get('content', {}).get('sectionListRenderer', {}).get('contents', []):
+                    shelf = s.get('musicShelfRenderer')
+                    if shelf:
+                        items_raw.extend(shelf.get('contents', []))
+
+            resultados = []
+            for idx, raw_item in enumerate(items_raw[:max_results], start=1):
+                item = raw_item.get('musicResponsiveListItemRenderer')
+                if not item:
+                    continue
+
+                video_id = (
+                    item.get('playlistItemData', {}).get('videoId') or
+                    item.get('overlay', {}).get('musicItemThumbnailOverlayRenderer', {}).get('content', {}).get('musicPlayButtonRenderer', {}).get('playNavigationEndpoint', {}).get('watchEndpoint', {}).get('videoId')
+                )
+                if not video_id:
+                    continue
+
+                flex_cols = item.get('flexColumns', [])
+                titulo = ""
+                if len(flex_cols) > 0:
+                    runs0 = flex_cols[0].get('musicResponsiveListItemFlexColumnRenderer', {}).get('text', {}).get('runs', [])
+                    if runs0:
+                        titulo = runs0[0].get('text', '')
+
+                artista_track = artista_album
+                if len(flex_cols) > 1:
+                    runs1 = flex_cols[1].get('musicResponsiveListItemFlexColumnRenderer', {}).get('text', {}).get('runs', [])
+                    p_track = [r.get('text', '').strip() for r in runs1 if r.get('text', '').strip() and r.get('text', '').strip() != '•']
+                    if p_track and p_track[0]:
+                        artista_track = p_track[0]
+
+                duracion_str = "--:--"
+                fixed = item.get('fixedColumns', [])
+                if fixed:
+                    runs_f = fixed[0].get('musicResponsiveListItemFixedColumnRenderer', {}).get('text', {}).get('runs', [])
+                    if runs_f:
+                        duracion_str = runs_f[0].get('text', '--:--')
+
+                dur_secs = 0
+                if ':' in duracion_str:
+                    try:
+                        p_dur = [int(x) for x in duracion_str.split(':')]
+                        if len(p_dur) == 2:
+                            dur_secs = p_dur[0] * 60 + p_dur[1]
+                        elif len(p_dur) == 3:
+                            dur_secs = p_dur[0] * 3600 + p_dur[1] * 60 + p_dur[2]
+                    except Exception:
+                        pass
+
+                views_str = "--"
+                if len(flex_cols) > 2:
+                    runs2 = flex_cols[2].get('musicResponsiveListItemFlexColumnRenderer', {}).get('text', {}).get('runs', [])
+                    if runs2:
+                        views_str = runs2[0].get('text', '--')
+
+                track_num = item.get('index', {}).get('runs', [{}])[0].get('text', str(idx))
+
+                resultados.append({
+                    'index': idx,
+                    'track_number': track_num,
+                    'id': video_id,
+                    'title': titulo,
+                    'channel': artista_track or artista_album or 'YouTube Music',
+                    'channel_url': f"https://music.youtube.com/watch?v={video_id}",
+                    'duration_seconds': dur_secs,
+                    'duration': duracion_str,
+                    'views': views_str,
+                    'view_count': 0,
+                    'url': f"https://music.youtube.com/watch?v={video_id}",
+                    'description': f"Artista: {artista_track}\nÁlbum: {nombre_album}",
+                    'is_playlist': False,
+                    'is_channel': False,
+                    'is_music': True,
+                    'tipo_item': 'music',
+                    'artist': artista_track,
+                    'album': nombre_album,
+                    'album_id': browse_id,
+                    'year': year_album,
+                    'track': titulo,
+                    'selected': False,
+                })
+
+            return resultados
+        except Exception as e:
+            logger.warning(f"Error al obtener canciones del álbum {browse_id}: {e}")
+            query_fallback = f"{artist_name} {album_title or target}".strip()
+            return self._buscar_youtube_music_innertube(query_fallback, max_results=max_results, start_index=1)
 
     def _extraer_videos_canal_musica(self, channel_url_or_base: str, max_results: int = 25, start_index: int = 1, channel_title: str = ''):
 
