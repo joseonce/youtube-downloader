@@ -1,10 +1,16 @@
 {
-  "version": "1.6.3",
+  "version": "1.6.4",
   "name": "Descargador de YouTube",
-  "date": "2026-11-05",
+  "date": "2026-11-11",
   "url": "https://github.com/joseonce/youtube-downloader/releases/latest/download/YouTubeDownloader.zip",
   "fallback_url": "https://buscaapps.com/youtube/YouTubeDownloader.zip",
   "changelog": [
+    "v1.6.4: Búsqueda especializada en YouTube Music con resolución nativa completa de álbumes y repertorio íntegro de pistas.",
+    "v1.6.4: Menú contextual adaptativo en YouTube Music: opciones contextuales de canciones del mismo artista, canciones del mismo álbum y copiar enlace del artista.",
+    "v1.6.4: Paginación continua fluida y entrega de la cantidad exacta configurada (25 resultados) mediante gestión de continuaciones en YouTube Music.",
+    "v1.6.4: Columnas dinámicas y adaptativas en la lista de resultados para favoritos mixtos (música y vídeo) con recálculo automático al eliminar pistas.",
+    "v1.6.4: Configuración avanzada de carátula en opciones de descarga (incrustada, incrustada + JPG, solo JPG, o sin carátula).",
+    "v1.6.4: Robustecimiento del mecanismo transaccional de auto-actualización con confirmación de arranque multicanal y prevención de bucles de reversión.",
     "v1.6.3: Extracción de transcripciones y subtítulos a formato texto (.txt) con descarga directa en la carpeta de descargas.",
     "v1.6.3: Posibilidad de traducir el texto de las transcripciones al idioma deseado (Español, Inglés, Francés, Alemán, Italiano, Portugués, Catalán, Gallego, Euskera, Ruso, Chino, Japonés u otros códigos ISO).",
     "v1.6.3: Selector de estrategia y método de extracción yt-dlp configurable tanto en la barra de menú como en Preferencias (Rápido/Estándar, Compatibilidad extendida y Predeterminado).",
